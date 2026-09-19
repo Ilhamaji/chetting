@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String?
+  email         String        @unique
+  emailVerified DateTime?
+  image         String?
+  password      String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  lastSeen      DateTime?
+  status        UserStatus    @default(OFFLINE)
+  accounts      Account[]
+  friendships1  Friendship[]  @relation("User1Friendships")
+  friendships2  Friendship[]  @relation("User2Friendships")
+  createdGroups Group[]       @relation("GroupCreator")
+  groupMembers  GroupMember[]
+  sentMessages  Message[]     @relation("SentMessages")
+  voiceSessions VoiceSession[]
+  sessions      Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Friendship {
+  id        String           @id @default(cuid())
+  user1Id   String
+  user2Id   String
+  status    FriendshipStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  user1     User             @relation("User1Friendships", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2     User             @relation("User2Friendships", fields: [user2Id], references: [id], onDelete: Cascade)
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+}
+
+model Group {
+  id          String            @id @default(cuid())
+  name        String
+  image       String?
+  description String?
+  creatorId   String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  channels    Channel[]
+  categories  ChannelCategory[]
+  creator     User              @relation("GroupCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  messages    Message[]
+}
+
+model ChannelCategory {
+  id        String    @id @default(cuid())
+  name      String
+  groupId   String
+  position  Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  channels  Channel[]
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+}
+
+model Channel {
+  id         String           @id @default(cuid())
+  name       String
+  type       ChannelType      @default(TEXT)
+  groupId    String
+  categoryId String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  category   ChannelCategory? @relation(fields: [categoryId], references: [id])
+  group      Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  messages   Message[]
+  voiceSessions VoiceSession[]
+
+  @@index([groupId])
+  @@index([categoryId])
+}
+
+model VoiceSession {
+  id        String   @id @default(cuid())
+  channelId String
+  userId    String
+  updatedAt DateTime @updatedAt
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([channelId])
+  @@index([updatedAt])
+}
+
+model GroupMember {
+  id       String    @id @default(cuid())
+  groupId  String
+  userId   String
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+}
+
+model Message {
+  id          String      @id @default(cuid())
+  content     String
+  senderId    String
+  recipientId String?
+  groupId     String?
+  type        MessageType @default(TEXT)
+  fileUrl     String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  readAt      DateTime?
+  channelId   String?
+  channel     Channel?    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  group       Group?      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sender      User        @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([groupId])
+  @@index([channelId])
+  @@index([createdAt])
+}
+
+enum UserStatus {
+  ONLINE
+  IDLE
+  DND
+  OFFLINE
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+enum ChannelType {
+  TEXT
+  VOICE
+  VIDEO
+}
+
+enum GroupRole {
+  ADMIN
+  MEMBER
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  AUDIO
+  VIDEO
+}

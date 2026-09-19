@@ -1,0 +1,441 @@
+"use client"
+
+import { useState, useEffect, useRef } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { UserAvatar } from "./user-avatar"
+import { Button } from "@/components/ui/button"
+import {
+  Mic,
+  MicOff,
+  Headphones,
+  Video,
+  VideoOff,
+  ScreenShare,
+  PhoneOff,
+  Volume2,
+  Signal,
+  Radio,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useToast } from "@/components/ui/confirm-dialog"
+import { sound } from "@/lib/sound"
+
+interface VoiceMember {
+  id: string
+  name: string | null
+  image: string | null
+  status: "ONLINE" | "IDLE" | "DND" | "OFFLINE"
+}
+
+interface VoiceRoomProps {
+  channelId: string
+  channelName: string
+  groupId?: string
+  currentUserId: string
+  currentUserName: string
+  currentUserImage?: string | null
+  onLeave?: () => void
+}
+
+export function VoiceRoom({
+  channelId,
+  channelName,
+  currentUserId,
+  currentUserName,
+  currentUserImage,
+  onLeave,
+}: VoiceRoomProps) {
+  const toast = useToast()
+  const [isMuted, setIsMuted] = useState(false)
+  const [isDeafened, setIsDeafened] = useState(false)
+  const [isVideoOn, setIsVideoOn] = useState(false)
+  const [isScreenSharing, setIsScreenSharing] = useState(false)
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [audioLevel, setAudioLevel] = useState(0)
+  const [ping] = useState(24)
+  const [connectedTime, setConnectedTime] = useState(0)
+  const [members, setMembers] = useState<VoiceMember[]>([])
+
+  const localVideoRef = useRef<HTMLVideoElement>(null)
+  const screenVideoRef = useRef<HTMLVideoElement>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const mediaStreamRef = useRef<MediaStream | null>(null)
+  const videoStreamRef = useRef<MediaStream | null>(null)
+  const screenStreamRef = useRef<MediaStream | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
+
+  const attachStream = (video: HTMLVideoElement | null, stream: MediaStream | null) => {
+    if (!video) return
+    if (video.srcObject !== stream) {
+      video.srcObject = stream
+    }
+    if (stream) {
+      video.play().catch(() => {})
+    }
+  }
+
+  useEffect(() => {
+    let active = true
+
+    const updatePresence = async () => {
+      try {
+        await fetch(`/api/channels/${channelId}/voice-members`, { method: "PUT" })
+        const response = await fetch(`/api/channels/${channelId}/voice-members`)
+        if (!response.ok || !active) return
+        const data = await response.json()
+        setMembers(data.members)
+      } catch (error) {
+        console.error("Update voice presence error:", error)
+      }
+    }
+
+    sound.join()
+    updatePresence()
+    const interval = window.setInterval(updatePresence, 15_000)
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+      fetch(`/api/channels/${channelId}/voice-members`, { method: "DELETE", keepalive: true })
+    }
+  }, [channelId])
+
+  // Timer counter
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setConnectedTime((prev) => prev + 1)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Audio level detection using Web Audio API
+  useEffect(() => {
+    let active = true
+
+    async function initAudio() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        if (!active) return
+        mediaStreamRef.current = stream
+
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+        const audioCtx = new AudioCtx()
+        audioContextRef.current = audioCtx
+        const analyser = audioCtx.createAnalyser()
+        analyser.fftSize = 256
+        const source = audioCtx.createMediaStreamSource(stream)
+        source.connect(analyser)
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount)
+
+        const checkVolume = () => {
+          if (!active) return
+          analyser.getByteFrequencyData(dataArray)
+          let sum = 0
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i]
+          }
+          const average = sum / dataArray.length
+          setAudioLevel(average)
+          setIsSpeaking(!isMuted && average > 16)
+          animationFrameRef.current = requestAnimationFrame(checkVolume)
+        }
+
+        checkVolume()
+      } catch (err) {
+        console.warn("Microphone access unavailable or blocked:", err)
+      }
+    }
+
+    initAudio()
+
+    return () => {
+      active = false
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop())
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+        audioContextRef.current.close()
+      }
+    }
+  }, [isMuted])
+
+  useEffect(() => {
+    attachStream(localVideoRef.current, isVideoOn ? videoStreamRef.current : null)
+  }, [isVideoOn])
+
+  useEffect(() => {
+    attachStream(screenVideoRef.current, isScreenSharing ? screenStreamRef.current : null)
+  }, [isScreenSharing])
+
+  const stopStream = (stream: MediaStream | null) => {
+    stream?.getTracks().forEach((track) => track.stop())
+  }
+
+  const toggleVideo = async () => {
+    sound.click()
+    if (isVideoOn) {
+      stopStream(videoStreamRef.current)
+      videoStreamRef.current = null
+      attachStream(localVideoRef.current, null)
+      setIsVideoOn(false)
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      videoStreamRef.current = stream
+      setIsVideoOn(true)
+    } catch (err) {
+      toast("Could not access camera", "error")
+    }
+  }
+
+  const toggleScreenShare = async () => {
+    sound.click()
+    if (isScreenSharing) {
+      stopStream(screenStreamRef.current)
+      screenStreamRef.current = null
+      attachStream(screenVideoRef.current, null)
+      setIsScreenSharing(false)
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+      const [track] = stream.getVideoTracks()
+      track.onended = () => {
+        stopStream(screenStreamRef.current)
+        screenStreamRef.current = null
+        attachStream(screenVideoRef.current, null)
+        setIsScreenSharing(false)
+      }
+      screenStreamRef.current = stream
+      setIsScreenSharing(true)
+    } catch (err) {
+      console.warn("Screen share cancelled", err)
+    }
+  }
+
+  const handleToggleMute = () => {
+    if (isMuted) {
+      sound.unmute()
+      setIsMuted(false)
+    } else {
+      sound.mute()
+      setIsMuted(true)
+    }
+  }
+
+  const handleToggleDeafen = () => {
+    sound.click()
+    setIsDeafened((prev) => !prev)
+  }
+
+  const handleDisconnect = () => {
+    sound.leave()
+    if (onLeave) onLeave()
+  }
+
+  const formatDuration = (secs: number) => {
+    const mins = Math.floor(secs / 60)
+    const remSecs = secs % 60
+    return `${mins.toString().padStart(2, "0")}:${remSecs.toString().padStart(2, "0")}`
+  }
+
+  return (
+    <div className="flex-1 flex flex-col h-full bg-zinc-950 text-zinc-100 select-none">
+      {/* Header bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 bg-zinc-900 px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-3.5">
+          <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+            <Volume2 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="truncate text-base font-extrabold tracking-tight text-white">
+                {channelName}
+              </h2>
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                Connected
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs font-medium text-zinc-400">
+              Voice Room · Elapsed: {formatDuration(connectedTime)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2 rounded-xl border border-zinc-700/60 bg-zinc-800/80 px-3 py-1.5 text-xs font-semibold text-emerald-400 sm:px-3.5">
+          <Signal className="h-3.5 w-3.5 text-emerald-400" />
+          <span>RTC OK ({ping}ms)</span>
+        </div>
+      </div>
+
+      {/* Main Grid: Participant Cards */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
+          <motion.div
+            layout
+            className={cn(
+              "relative flex min-h-[16rem] items-center justify-center overflow-hidden rounded-2xl border-2 border-zinc-800 bg-zinc-900 p-5 transition-colors sm:min-h-[18rem] sm:p-6 lg:min-h-[20rem] lg:p-8",
+              isSpeaking && "border-emerald-500"
+            )}
+          >
+            <video
+              ref={screenVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={cn(
+                "absolute inset-0 h-full w-full bg-black object-contain",
+                isScreenSharing ? "block" : "hidden"
+              )}
+            />
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={cn(
+                "absolute inset-0 h-full w-full object-cover",
+                isVideoOn && !isScreenSharing ? "block" : "hidden"
+              )}
+            />
+            {!isScreenSharing && !isVideoOn && (
+              <div className="relative z-10 flex flex-col items-center gap-5">
+                <UserAvatar
+                  name={currentUserName}
+                  image={currentUserImage}
+                  speaking={isSpeaking}
+                  className="h-20 w-20 text-2xl sm:h-24 sm:w-24 sm:text-3xl"
+                />
+
+                <div className="text-center">
+                  <h3 className="font-extrabold text-white text-lg flex items-center justify-center gap-2">
+                    {currentUserName} <span className="text-xs text-zinc-400 font-medium">(You)</span>
+                  </h3>
+ mar                  <div className="flex items-center justify-center gap-1.5 mt-1.5">
+                    {isSpeaking ? (
+                      <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                        Speaking
+                      </span>
+                    ) : (
+                      <span className="text-xs text-zinc-500 font-medium">Ready</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom Status tags inside card */}
+            <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-20">
+              <span className="bg-zinc-950/80 backdrop-blur-md px-3 py-1 rounded-xl text-xs font-bold text-white border border-zinc-800">
+                {currentUserName}
+              </span>
+              <div className="flex items-center gap-2">
+                {isMuted && (
+                  <span className="bg-rose-600 text-white p-1.5 rounded-lg shadow-sm" title="Muted">
+                    <MicOff className="w-3.5 h-3.5" />
+                  </span>
+                )}
+                {isDeafened && (
+                  <span className="bg-rose-600 text-white p-1.5 rounded-lg shadow-sm" title="Deafened">
+                    <Headphones className="w-3.5 h-3.5" />
+                  </span>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Bottom Voice Control Bar (Satisfying Tactile Controls) */}
+      <div className="flex flex-wrap items-center justify-center gap-2 border-t border-zinc-800 bg-zinc-900 p-3 sm:gap-3.5 sm:p-5">
+        {/* Mute Button */}
+        <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+          <Button
+            size="icon"
+            onClick={handleToggleMute}
+            className={cn(
+              "w-13 h-13 rounded-2xl shadow-lg transition-all cursor-pointer font-bold",
+              isMuted
+                ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-950/50"
+                : "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700"
+            )}
+            title={isMuted ? "Unmute Microphone" : "Mute Microphone"}
+          >
+            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          </Button>
+        </motion.div>
+
+        {/* Deafen Button */}
+        <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+          <Button
+            size="icon"
+            onClick={handleToggleDeafen}
+            className={cn(
+              "w-13 h-13 rounded-2xl shadow-lg transition-all cursor-pointer font-bold",
+              isDeafened
+                ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-950/50"
+                : "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700"
+            )}
+            title={isDeafened ? "Undeafen Audio" : "Deafen Audio"}
+          >
+            <Headphones className="w-5 h-5" />
+          </Button>
+        </motion.div>
+
+        {/* Camera Toggle */}
+        <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+          <Button
+            size="icon"
+            onClick={toggleVideo}
+            className={cn(
+              "w-13 h-13 rounded-2xl shadow-lg transition-all cursor-pointer font-bold",
+              isVideoOn
+                ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-950/50"
+                : "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700"
+            )}
+            title={isVideoOn ? "Turn off camera" : "Turn on camera"}
+          >
+            {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+          </Button>
+        </motion.div>
+
+        {/* Screen Share */}
+        <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+          <Button
+            size="icon"
+            onClick={toggleScreenShare}
+            className={cn(
+              "w-13 h-13 rounded-2xl shadow-lg transition-all cursor-pointer font-bold",
+              isScreenSharing
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-950/50"
+                : "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700"
+            )}
+            title={isScreenSharing ? "Stop sharing" : "Share screen"}
+          >
+            <ScreenShare className="w-5 h-5" />
+          </Button>
+        </motion.div>
+
+        <div className="w-[1px] h-8 bg-zinc-800 mx-2" />
+
+        {/* Disconnect Button */}
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.94 }}>
+          <Button
+            variant="destructive"
+            onClick={handleDisconnect}
+            className="h-13 px-6 rounded-2xl bg-rose-600 hover:bg-rose-700 font-extrabold text-sm shadow-xl shadow-rose-950/50 gap-2 text-white cursor-pointer"
+          >
+            <PhoneOff className="w-5 h-5" />
+            Disconnect
+          </Button>
+        </motion.div>
+      </div>
+    </div>
+  )
+}
