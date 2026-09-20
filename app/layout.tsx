@@ -19,6 +19,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/ceting-icon.svg" type="image/svg+xml" />
+        <link rel="shortcut icon" href="/ceting-icon.svg" />
+        <link rel="apple-touch-icon" href="/ceting-icon.svg" />
+      </head>
       <body>
         <Providers>{children}</Providers>
       </body>

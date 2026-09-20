@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" width="100%" height="100%">
+  <defs>
+    <!-- Background Shadow -->
+    <radialGradient id="shadowGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Bamboo Lid Gradient -->
+    <linearGradient id="lidGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#deb07a"/>
+      <stop offset="35%" stop-color="#caa069"/>
+      <stop offset="70%" stop-color="#b68249"/>
+      <stop offset="100%" stop-color="#93622d"/>
+    </linearGradient>
+
+    <!-- Lid Rim Gradient -->
+    <linearGradient id="lidRimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#cca36e"/>
+      <stop offset="50%" stop-color="#a87640"/>
+      <stop offset="100%" stop-color="#7e4c1e"/>
+    </linearGradient>
+
+    <!-- Body Bamboo Gradient -->
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#c9975b"/>
+      <stop offset="40%" stop-color="#b37f44"/>
+      <stop offset="80%" stop-color="#915b24"/>
+      <stop offset="100%" stop-color="#693b0f"/>
+    </linearGradient>
+
+    <!-- Body Shading Overlay -->
+    <radialGradient id="bodyShade" cx="50%" cy="20%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="60%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.4"/>
+    </radialGradient>
+
+    <!-- Base Pedestal Gradient -->
+    <linearGradient id="baseGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8a5624"/>
+      <stop offset="50%" stop-color="#a77038"/>
+      <stop offset="100%" stop-color="#663a11"/>
+    </linearGradient>
+
+    <!-- Yellow Rim Gradient -->
+    <linearGradient id="yellowBandGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#ca8a04"/>
+    </linearGradient>
+
+    <!-- Weave Pattern -->
+    <pattern id="weavePattern" width="12" height="12" patternUnits="userSpaceOnUse">
+      <path d="M0 6 L6 0 L12 6 L6 12 Z" fill="none" stroke="#683d14" stroke-width="0.8" opacity="0.4"/>
+      <path d="M0 0 L12 12 M12 0 L0 12" fill="none" stroke="#ffe0a3" stroke-width="0.75" opacity="0.35"/>
+      <path d="M3 3 L9 9 M9 3 L3 9" fill="none" stroke="#4a2405" stroke-width="0.6" opacity="0.3"/>
+    </pattern>
+
+    <!-- Lid Weave Pattern -->
+    <pattern id="lidWeave" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M0 5 L5 0 L10 5 L5 10 Z" fill="none" stroke="#522b08" stroke-width="0.7" opacity="0.35"/>
+      <path d="M0 0 L10 10 M10 0 L0 10" fill="none" stroke="#fef0cd" stroke-width="0.7" opacity="0.3"/>
+    </pattern>
+  </defs>
+
+  <!-- Ground / Plate Shadow -->
+  <ellipse cx="60" cy="107" rx="42" ry="7" fill="url(#shadowGrad)"/>
+
+  <!-- ================= BASE PEDESTAL (KAKI CETING) ================= -->
+  <!-- Base Pedestal Body -->
+  <path d="M 40 85 L 80 85 L 77 103 C 77 104.5 75.5 105.5 73.5 105.5 L 46.5 105.5 C 44.5 105.5 43 104.5 43 103 Z" fill="url(#baseGrad)"/>
+  
+  <!-- Base Bottom Rim Trim -->
+  <ellipse cx="60" cy="104.5" rx="14.5" ry="2" fill="#522908"/>
+
+  <!-- Base Yellow Vertical Ties (Kiri & Kanan) -->
+  <!-- Left Yellow Tie Band -->
+  <path d="M 46 86 L 50 86 L 50 105 L 46 104.5 Z" fill="url(#yellowBandGrad)" stroke="#a16207" stroke-width="0.5"/>
+  <line x1="48" y1="86" x2="48" y2="105" stroke="#fef08a" stroke-width="0.75"/>
+  
+  <!-- Right Yellow Knot / Loop Detail -->
+  <path d="M 72 90 C 74 90 75 92 75 95 C 75 97 73 98 72 97 Z" fill="#eab308" stroke="#854d0e" stroke-width="0.5"/>
+
+  <!-- ================= BOWL BODY (WADAH ANYAMAN BAMBU) ================= -->
+  <!-- Body Outline & Fill -->
+  <path id="bowlShape" d="M 17 52 C 17 52 23 83 40 87 C 48 89 72 89 80 87 C 97 83 103 52 103 52 Z" fill="url(#bodyGrad)"/>
+  
+  <!-- Woven Bamboo Pattern Overlay on Bowl -->
+  <path d="M 17 52 C 17 52 23 83 40 87 C 48 89 72 89 80 87 C 97 83 103 52 103 52 Z" fill="url(#weavePattern)"/>
+  
+  <!-- Body Shading / 3D Curve Shadow -->
+  <path d="M 17 52 C 17 52 23 83 40 87 C 48 89 72 89 80 87 C 97 83 103 52 103 52 Z" fill="url(#bodyShade)"/>
+
+  <!-- Woven Herringbone Ribs Details on Bowl -->
+  <path d="M 23 56 Q 35 72 44 86" stroke="#452005" stroke-width="0.8" opacity="0.5" fill="none"/>
+  <path d="M 33 55 Q 43 72 50 87" stroke="#452005" stroke-width="0.8" opacity="0.4" fill="none"/>
+  <path d="M 45 55 Q 52 72 57 87" stroke="#452005" stroke-width="0.8" opacity="0.3" fill="none"/>
+  <path d="M 75 55 Q 68 72 63 87" stroke="#452005" stroke-width="0.8" opacity="0.3" fill="none"/>
+  <path d="M 87 55 Q 77 72 70 87" stroke="#452005" stroke-width="0.8" opacity="0.4" fill="none"/>
+  <path d="M 97 56 Q 85 72 76 86" stroke="#452005" stroke-width="0.8" opacity="0.5" fill="none"/>
+
+  <!-- ================= YELLOW WOVEN RIM (BIBIR ANYAMAN KUNING) ================= -->
+  <!-- Outer Yellow Band Ring -->
+  <rect x="14" y="47" width="92" height="8.5" rx="4.25" fill="#4a2505"/>
+  
+  <!-- Yellow Rattan Vertical Stitches Wrapping the Rim -->
+  <g fill="url(#yellowBandGrad)" stroke="#854d0e" stroke-width="0.35">
+    <rect x="16" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="19.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="23" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="26.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="30" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="33.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="37" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="40.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="44" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="47.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="51" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="54.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="58" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="61.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="65" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="68.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="72" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="75.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="79" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="82.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="86" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="89.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="93" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="96.5" y="47" width="2" height="8.5" rx="0.5"/>
+    <rect x="100" y="47" width="2" height="8.5" rx="0.5"/>
+  </g>
+
+  <!-- Yellow Rim Highlight Line -->
+  <line x1="16" y1="48" x2="102" y2="48" stroke="#fef08a" stroke-width="0.8" opacity="0.75"/>
+
+  <!-- Small side loop / string tie accent (Tali Pengait Kiri) -->
+  <path d="M 14 50 C 9 48 7 42 12 40" stroke="#d97706" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+
+  <!-- ================= LID (TUTUP CETING BAMBU) ================= -->
+  <!-- Shadow Under Lid -->
+  <ellipse cx="60" cy="46" rx="43" ry="4" fill="#000000" opacity="0.35"/>
+
+  <!-- Lid Lower Rim Strip -->
+  <rect x="15" y="32" width="90" height="13" rx="5" fill="url(#lidRimGrad)" stroke="#57300c" stroke-width="0.6"/>
+  <!-- Lid Rim Highlight Line -->
+  <line x1="18" y1="35" x2="102" y2="35" stroke="#fde68a" stroke-width="0.8" opacity="0.5"/>
+  <line x1="18" y1="43" x2="102" y2="43" stroke="#3b1d06" stroke-width="0.8" opacity="0.6"/>
+
+  <!-- Lid Yellow Joint Stitches (Sambungan Tali Kuning Tutup) -->
+  <g fill="url(#yellowBandGrad)" stroke="#854d0e" stroke-width="0.3">
+    <rect x="76" y="32" width="3.5" height="13" rx="0.5"/>
+  </g>
+
+  <!-- Lid Dome Top (Kubah Anyaman Tutup) -->
+  <path d="M 16 34 C 16 34 26 21 60 21 C 94 21 104 34 104 34 Z" fill="url(#lidGrad)"/>
+  <!-- Lid Weave Pattern -->
+  <path d="M 16 34 C 16 34 26 21 60 21 C 94 21 104 34 104 34 Z" fill="url(#lidWeave)"/>
+
+  <!-- Lid Dome Highlight/Shadow Curves -->
+  <path d="M 22 33 C 30 23 58 23 60 23 C 62 23 90 23 98 33" stroke="#fff" stroke-width="1" opacity="0.25" fill="none"/>
+  <path d="M 16 34 C 26 21 60 21 60 21" stroke="#ffedd5" stroke-width="0.8" opacity="0.4" fill="none"/>
+
+  <!-- Top Handle Loop / Knob (Cincin Pengait Atas) -->
+  <g id="topHandle">
+    <!-- Shadow under handle -->
+    <ellipse cx="60" cy="21.5" rx="3.5" ry="1.2" fill="#3a1b04" opacity="0.6"/>
+    <!-- Bamboo / Fiber Loop -->
+    <circle cx="60" cy="16" r="4.5" fill="url(#baseGrad)" stroke="#4a2505" stroke-width="0.75"/>
+    <circle cx="60" cy="16" r="2.2" fill="#fdf6e7" stroke="#4a2505" stroke-width="0.5"/>
+    <!-- Yellow thread securing the loop -->
+    <rect x="58.8" y="19" width="2.4" height="3" rx="0.6" fill="#facc15" stroke="#854d0e" stroke-width="0.3"/>
+  </g>
+
+  <!-- Warm Gloss / Steam Sparkle (Subtle) -->
+  <circle cx="34" cy="62" r="1" fill="#fff" opacity="0.4"/>
+  <circle cx="38" cy="68" r="1.5" fill="#fff" opacity="0.3"/>
+</svg>

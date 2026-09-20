@@ -704,11 +704,11 @@ export default function ChatPage() {
         ) : (
           <div className="flex-1 flex items-center justify-center bg-zinc-50 dark:bg-zinc-900/30 transition-colors">
             <div className="text-center p-8 max-w-sm">
-              <div className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-5 rounded-2xl shadow-lg mx-auto mb-5 w-20 h-20 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <Compass className="w-10 h-10" />
+              <div className="bg-gradient-to-b from-amber-100 to-amber-200/80 dark:from-amber-950/50 dark:to-amber-900/30 border border-amber-300/60 dark:border-amber-700/40 p-4 rounded-2xl shadow-xl shadow-amber-500/10 mx-auto mb-5 w-20 h-20 flex items-center justify-center">
+                <CetingIcon size={52} className="drop-shadow-sm" />
               </div>
               <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
-                Welcome to DiscordLite
+                Welcome to Chetting
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 Select a friend for direct messages or choose a server channel to start chatting.
