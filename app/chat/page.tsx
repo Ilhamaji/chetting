@@ -399,7 +399,7 @@ export default function ChatPage() {
           </div>
           <div>
             <h1 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white">
-              Chetting
+              Cheting
             </h1>
             <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest">
               Real-time Chat
@@ -708,7 +708,7 @@ export default function ChatPage() {
                 <CetingIcon size={52} className="drop-shadow-sm" />
               </div>
               <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
-                Welcome to Chetting
+                Welcome to Cheting
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 Select a friend for direct messages or choose a server channel to start chatting.

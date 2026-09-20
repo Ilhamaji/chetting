@@ -93,7 +93,7 @@ export default function SignInPage() {
             <CetingIcon size={56} className="drop-shadow-sm" />
           </div>
           <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
-            Chetting
+            Cheting
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">
             Real-time chat for everyone

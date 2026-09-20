@@ -3,7 +3,7 @@ import "./globals.css"
 import { Providers } from "@/components/providers/session-provider"
 
 export const metadata: Metadata = {
-  title: "Chetting - Real-time Chat",
+  title: "Cheting - Real-time Chat",
   description: "Real-time chat platform for communities and friends",
   icons: {
     icon: "/ceting-icon.svg",
