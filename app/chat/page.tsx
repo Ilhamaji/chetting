@@ -34,7 +34,6 @@ import {
   UserPlus,
   LogOut,
   Plus,
-  Radio,
   Camera,
   Pencil,
   Sun,
@@ -43,6 +42,7 @@ import {
   Compass,
 } from "lucide-react"
 import { signOut } from "next-auth/react"
+import { CetingIcon } from "@/components/icons/ceting-icon"
 
 interface Friend {
   id: string
@@ -394,14 +394,14 @@ export default function ChatPage() {
       {/* App Header */}
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-5 py-3 flex items-center justify-between shadow-2xs transition-colors">
         <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2.5 rounded-xl text-white shadow-lg shadow-blue-600/20">
-            <Radio className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-b from-amber-100 to-amber-200/80 dark:from-amber-950/50 dark:to-amber-900/30 border border-amber-300/60 dark:border-amber-700/40 p-1 flex items-center justify-center shadow-md shadow-amber-500/10">
+            <CetingIcon size={30} className="drop-shadow-xs" />
           </div>
           <div>
             <h1 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white">
               Chetting
             </h1>
-            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest">
               Real-time Chat
             </p>
           </div>

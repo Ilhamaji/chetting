@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60" fill="none" width="100%" height="100%">
+  <defs>
+    <!-- Background Shadow -->
+    <radialGradient id="shadowGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Bamboo Lid Gradient -->
+    <linearGradient id="lidGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#deb07a"/>
+      <stop offset="35%" stop-color="#caa069"/>
+      <stop offset="70%" stop-color="#b68249"/>
+      <stop offset="100%" stop-color="#93622d"/>
+    </linearGradient>
+
+    <!-- Lid Rim Gradient -->
+    <linearGradient id="lidRimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#cca36e"/>
+      <stop offset="50%" stop-color="#a87640"/>
+      <stop offset="100%" stop-color="#7e4c1e"/>
+    </linearGradient>
+
+    <!-- Body Bamboo Gradient -->
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#c9975b"/>
+      <stop offset="40%" stop-color="#b37f44"/>
+      <stop offset="80%" stop-color="#915b24"/>
+      <stop offset="100%" stop-color="#693b0f"/>
+    </linearGradient>
+
+    <!-- Base Pedestal Gradient -->
+    <linearGradient id="baseGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8a5624"/>
+      <stop offset="50%" stop-color="#a77038"/>
+      <stop offset="100%" stop-color="#663a11"/>
+    </linearGradient>
+
+    <!-- Yellow Rim Gradient -->
+    <linearGradient id="yellowBandGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#ca8a04"/>
+    </linearGradient>
+
+    <!-- Weave Pattern -->
+    <pattern id="weavePatternLogo" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M0 4 L4 0 L8 4 L4 8 Z" fill="none" stroke="#683d14" stroke-width="0.6" opacity="0.4"/>
+      <path d="M0 0 L8 8 M8 0 L0 8" fill="none" stroke="#ffe0a3" stroke-width="0.5" opacity="0.35"/>
+    </pattern>
+  </defs>
+
+  <!-- Logo Mark Container (Left) -->
+  <g transform="translate(6, 4) scale(0.44)">
+    <!-- Shadow -->
+    <ellipse cx="60" cy="107" rx="42" ry="7" fill="url(#shadowGrad)"/>
+
+    <!-- Base Pedestal -->
+    <path d="M 40 85 L 80 85 L 77 103 C 77 104.5 75.5 105.5 73.5 105.5 L 46.5 105.5 C 44.5 105.5 43 104.5 43 103 Z" fill="url(#baseGrad)"/>
+    <ellipse cx="60" cy="104.5" rx="14.5" ry="2" fill="#522908"/>
+    <path d="M 46 86 L 50 86 L 50 105 L 46 104.5 Z" fill="url(#yellowBandGrad)" stroke="#a16207" stroke-width="0.5"/>
+    <path d="M 72 90 C 74 90 75 92 75 95 C 75 97 73 98 72 97 Z" fill="#eab308" stroke="#854d0e" stroke-width="0.5"/>
+
+    <!-- Bowl Body -->
+    <path d="M 17 52 C 17 52 23 83 40 87 C 48 89 72 89 80 87 C 97 83 103 52 103 52 Z" fill="url(#bodyGrad)"/>
+    <path d="M 17 52 C 17 52 23 83 40 87 C 48 89 72 89 80 87 C 97 83 103 52 103 52 Z" fill="url(#weavePatternLogo)"/>
+
+    <!-- Yellow Rim -->
+    <rect x="14" y="47" width="92" height="8.5" rx="4.25" fill="#4a2505"/>
+    <g fill="url(#yellowBandGrad)" stroke="#854d0e" stroke-width="0.35">
+      <rect x="16" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="20" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="24" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="28" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="32" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="36" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="40" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="44" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="48" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="52" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="56" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="60" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="64" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="68" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="72" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="76" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="80" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="84" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="88" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="92" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="96" y="47" width="2" height="8.5" rx="0.5"/>
+      <rect x="100" y="47" width="2" height="8.5" rx="0.5"/>
+    </g>
+    <line x1="16" y1="48" x2="102" y2="48" stroke="#fef08a" stroke-width="0.8" opacity="0.75"/>
+
+    <!-- Lid -->
+    <ellipse cx="60" cy="46" rx="43" ry="4" fill="#000" opacity="0.3"/>
+    <rect x="15" y="32" width="90" height="13" rx="5" fill="url(#lidRimGrad)" stroke="#57300c" stroke-width="0.6"/>
+    <rect x="76" y="32" width="3.5" height="13" rx="0.5" fill="url(#yellowBandGrad)"/>
+    <path d="M 16 34 C 16 34 26 21 60 21 C 94 21 104 34 104 34 Z" fill="url(#lidGrad)"/>
+    <circle cx="60" cy="16" r="4.5" fill="url(#baseGrad)" stroke="#4a2505" stroke-width="0.75"/>
+    <circle cx="60" cy="16" r="2.2" fill="#fdf6e7"/>
+    <rect x="58.8" y="19" width="2.4" height="3" rx="0.6" fill="#facc15"/>
+  </g>
+
+  <!-- Typography: Chetting -->
+  <text x="68" y="36" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="26" font-weight="900" letter-spacing="-0.5" fill="#18181b">
+    Chetting
+  </text>
+  <text x="69" y="49" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9" font-weight="700" letter-spacing="1.5" fill="#d97706" text-transform="uppercase">
+    REAL-TIME CHAT
+  </text>
+</svg>

@@ -6,10 +6,11 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Radio, Sun, Moon } from "lucide-react"
+import { Sun, Moon } from "lucide-react"
 import { useToast } from "@/components/ui/confirm-dialog"
 import { useTheme } from "@/components/providers/theme-provider"
 import { sound } from "@/lib/sound"
+import { CetingIcon } from "@/components/icons/ceting-icon"
 
 export default function SignInPage() {
   const router = useRouter()
@@ -88,8 +89,8 @@ export default function SignInPage() {
       >
         {/* Logo Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-600/30 mb-4">
-            <Radio className="w-8 h-8" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-b from-amber-100 to-amber-200/80 dark:from-amber-950/50 dark:to-amber-900/30 border border-amber-300/60 dark:border-amber-700/40 shadow-xl shadow-amber-500/10 mb-4 p-2 transition-transform hover:scale-105 duration-200">
+            <CetingIcon size={56} className="drop-shadow-sm" />
           </div>
           <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
             Chetting
