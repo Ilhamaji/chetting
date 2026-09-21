@@ -77,6 +77,7 @@ export function VoiceRoom({
   const remoteAnalyserRef = useRef<Map<string, AnalyserNode>>(new Map())
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const videoSendersRef = useRef<Map<string, RTCRtpSender>>(new Map())
+  const reconnectTimersRef = useRef<Map<string, number>>(new Map())
 
   const remoteMemberIds = members
     .filter((member) => member.id !== currentUserId)
@@ -139,6 +140,9 @@ export function VoiceRoom({
   }
 
   const closePeer = (peerId: string) => {
+    const reconnectTimer = reconnectTimersRef.current.get(peerId)
+    if (reconnectTimer) window.clearTimeout(reconnectTimer)
+    reconnectTimersRef.current.delete(peerId)
     peersRef.current.get(peerId)?.close()
     peersRef.current.delete(peerId)
     const audio = remoteAudioRef.current.get(peerId)
@@ -170,7 +174,11 @@ export function VoiceRoom({
     if (existingPeer) return existingPeer
 
     const peer = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun.cloudflare.com:3478" },
+      ],
     })
     peersRef.current.set(peerId, peer)
     setPeerStates((previous) => ({ ...previous, [peerId]: "new" }))
@@ -229,8 +237,23 @@ export function VoiceRoom({
 
     peer.onconnectionstatechange = () => {
       setPeerStates((previous) => ({ ...previous, [peerId]: peer.connectionState }))
+      if (peer.connectionState === "connected") {
+        const reconnectTimer = reconnectTimersRef.current.get(peerId)
+        if (reconnectTimer) window.clearTimeout(reconnectTimer)
+        reconnectTimersRef.current.delete(peerId)
+        const currentTrack = screenStreamRef.current?.getVideoTracks()[0] || videoStreamRef.current?.getVideoTracks()[0] || null
+        videoSendersRef.current.get(peerId)?.replaceTrack(currentTrack).catch((error) => {
+          console.error("Attach media after connection error:", error)
+        })
+      }
       if (["failed", "closed", "disconnected"].includes(peer.connectionState)) {
-        closePeer(peerId)
+        const timer = window.setTimeout(() => {
+          if (peersRef.current.get(peerId) === peer) {
+            closePeer(peerId)
+            createPeer(peerId, currentUserId < peerId)
+          }
+        }, 750)
+        reconnectTimersRef.current.set(peerId, timer)
       }
     }
 
