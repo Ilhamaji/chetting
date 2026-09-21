@@ -63,7 +63,24 @@ export async function PUT(
       create: { channelId, userId: session.user.id },
     })
 
-    return NextResponse.json({ success: true })
+    await prisma.voiceSession.deleteMany({
+      where: { channelId, updatedAt: { lt: new Date(Date.now() - 30_000) } },
+    })
+
+    const members = await prisma.voiceSession.findMany({
+      where: { channelId },
+      select: {
+        user: {
+          select: { id: true, name: true, image: true, status: true },
+        },
+      },
+      orderBy: { updatedAt: "asc" },
+    })
+
+    return NextResponse.json({
+      success: true,
+      members: members.map(({ user }) => user),
+    })
   } catch (error) {
     console.error("Join voice channel error:", error)
     return NextResponse.json({ message: "Internal server error" }, { status: 500 })

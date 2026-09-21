@@ -59,6 +59,7 @@ export function VoiceRoom({
   const [members, setMembers] = useState<VoiceMember[]>([])
   const [mediaReady, setMediaReady] = useState(false)
   const [mediaError, setMediaError] = useState(false)
+  const [presenceReady, setPresenceReady] = useState(false)
   const [peerStates, setPeerStates] = useState<Record<string, RTCPeerConnectionState>>({})
   const [remoteSpeakingIds, setRemoteSpeakingIds] = useState<string[]>([])
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({})
@@ -87,7 +88,7 @@ export function VoiceRoom({
   const allPeersConnected = remoteMemberIds.every((peerId) => peerStates[peerId] === "connected")
   const voiceStatus = mediaError
     ? "error"
-    : !mediaReady
+    : !mediaReady || !presenceReady
     ? "requesting"
     : remoteMemberIds.length > 0 && !allPeersConnected
     ? "connecting"
@@ -112,12 +113,15 @@ export function VoiceRoom({
       const controller = new AbortController()
       presenceControllerRef.current = controller
       try {
-        await fetch(`/api/channels/${channelId}/voice-members`, { method: "PUT", cache: "no-store", signal: controller.signal })
-        if (!active || leavingRef.current) return
-        const response = await fetch(`/api/channels/${channelId}/voice-members`, { cache: "no-store", signal: controller.signal })
+        const response = await fetch(`/api/channels/${channelId}/voice-members`, {
+          method: "PUT",
+          cache: "no-store",
+          signal: controller.signal,
+        })
         if (!response.ok || !active || leavingRef.current) return
         const data = await response.json()
         setMembers(data.members)
+        setPresenceReady(true)
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
           console.error("Update voice presence error:", error)
