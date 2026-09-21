@@ -409,7 +409,7 @@ export default function ChatPage() {
       : null
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-colors">
+    <div className="app-shell flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-colors">
       {/* App Header */}
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-5 py-3 flex items-center justify-between shadow-2xs transition-colors">
         <div className="flex items-center gap-3">
@@ -687,7 +687,7 @@ export default function ChatPage() {
       </Dialog>
 
       {/* Main Container */}
-      <div className="flex-1 flex min-w-0 overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className={selectedChat ? "hidden md:block shrink-0" : "block w-full md:w-80 shrink-0"}>
           <ChatSidebar
           friends={friends}

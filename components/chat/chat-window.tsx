@@ -206,7 +206,7 @@ export function ChatWindow({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-zinc-100/50 dark:bg-zinc-900/50 relative overflow-hidden select-none">
+    <div className="flex min-h-0 flex-1 flex-col h-full bg-zinc-100/50 dark:bg-zinc-900/50 relative overflow-hidden select-none">
       {/* Top Header Bar */}
       <div className="px-6 py-3.5 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-3">
@@ -406,7 +406,7 @@ export function ChatWindow({
       )}
 
       {/* Input bar */}
-      <div className="p-4 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800">
+      <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800">
         <form onSubmit={sendMessage} className="flex items-center gap-2 max-w-5xl mx-auto">
           <input
             type="file"

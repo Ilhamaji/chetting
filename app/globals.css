@@ -51,10 +51,25 @@
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     transition: background-color 0.2s ease, color 0.2s ease;
+    min-height: 100%;
+    overflow: hidden;
+  }
+
+  html {
+    height: 100%;
+    background: var(--background);
   }
 }
 
 @layer utilities {
+  .app-shell {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100svh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }

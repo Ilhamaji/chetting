@@ -2,6 +2,12 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { Providers } from "@/components/providers/session-provider"
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+}
+
 export const metadata: Metadata = {
   title: "Cheting - Real-time Chat",
   description: "Real-time chat platform for communities and friends",
