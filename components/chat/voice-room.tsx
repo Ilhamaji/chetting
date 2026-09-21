@@ -61,6 +61,8 @@ export function VoiceRoom({
   const [mediaError, setMediaError] = useState(false)
   const [mediaAttempt, setMediaAttempt] = useState(0)
   const [presenceReady, setPresenceReady] = useState(false)
+  const [presenceError, setPresenceError] = useState(false)
+  const [presenceAttempt, setPresenceAttempt] = useState(0)
   const [peerStates, setPeerStates] = useState<Record<string, RTCPeerConnectionState>>({})
   const [remoteSpeakingIds, setRemoteSpeakingIds] = useState<string[]>([])
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({})
@@ -88,6 +90,8 @@ export function VoiceRoom({
     .map((member) => member.id)
   const voiceStatus = mediaError
     ? "error"
+    : presenceError
+    ? "presence-error"
     : !mediaReady
     ? "requesting"
     : !presenceReady
@@ -109,6 +113,7 @@ export function VoiceRoom({
 
   useEffect(() => {
     let active = true
+    leavingRef.current = false
 
     const updatePresence = async () => {
       if (!active || leavingRef.current) return
@@ -116,6 +121,7 @@ export function VoiceRoom({
       const controller = new AbortController()
       presenceControllerRef.current = controller
       try {
+        const timeoutId = window.setTimeout(() => controller.abort(), 8_000)
         const response = await fetch(`/api/channels/${channelId}/voice-members`, {
           method: "PUT",
           cache: "no-store",
@@ -125,7 +131,10 @@ export function VoiceRoom({
         const data = await response.json()
         setMembers(data.members)
         setPresenceReady(true)
+        setPresenceError(false)
+        window.clearTimeout(timeoutId)
       } catch (error) {
+        setPresenceError(true)
         if (!(error instanceof DOMException && error.name === "AbortError")) {
           console.error("Update voice presence error:", error)
         }
@@ -143,7 +152,7 @@ export function VoiceRoom({
       window.clearInterval(interval)
       fetch(`/api/channels/${channelId}/voice-members`, { method: "POST", keepalive: true })
     }
-  }, [channelId])
+  }, [channelId, presenceAttempt])
 
   const sendSignal = async (
     recipientId: string,
@@ -650,7 +659,7 @@ export function VoiceRoom({
         {voiceStatus !== "connected" ? (
           <div className={cn(
             "mx-auto mb-4 flex max-w-5xl flex-wrap items-center gap-3 rounded-xl border px-4 py-3 text-sm",
-            voiceStatus === "error"
+            voiceStatus === "error" || voiceStatus === "presence-error"
               ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
               : "border-amber-500/30 bg-amber-500/10 text-amber-200"
           )}>
@@ -658,11 +667,13 @@ export function VoiceRoom({
             <span className="min-w-0 flex-1">
               {voiceStatus === "error"
                 ? "Microphone access did not finish. Check the browser permission, then try again."
+                : voiceStatus === "presence-error"
+                ? "Voice server did not respond. Check your connection, then try again."
                 : voiceStatus === "requesting"
                 ? "Preparing your microphone..."
                 : "Connecting to the voice channel. Your audio will be sent when connected."}
             </span>
-            {voiceStatus === "error" && (
+            {(voiceStatus === "error" || voiceStatus === "presence-error") && (
               <Button
                 type="button"
                 size="sm"
@@ -671,6 +682,9 @@ export function VoiceRoom({
                 onClick={() => {
                   setMediaError(false)
                   setMediaReady(false)
+                  setPresenceError(false)
+                  setPresenceReady(false)
+                  setPresenceAttempt((attempt) => attempt + 1)
                   setMediaAttempt((attempt) => attempt + 1)
                 }}
               >
