@@ -136,6 +136,18 @@ model VoiceSession {
   @@index([updatedAt])
 }
 
+model VoiceSignal {
+  id          String   @id @default(cuid())
+  channelId   String
+  senderId    String
+  recipientId String
+  type        String
+  payload     Json
+  createdAt   DateTime @default(now())
+
+  @@index([channelId, recipientId, createdAt])
+}
+
 model GroupMember {
   id       String    @id @default(cuid())
   groupId  String

@@ -55,6 +55,7 @@ export function VoiceRoom({
   const [ping] = useState(24)
   const [connectedTime, setConnectedTime] = useState(0)
   const [members, setMembers] = useState<VoiceMember[]>([])
+  const [mediaReady, setMediaReady] = useState(false)
 
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const screenVideoRef = useRef<HTMLVideoElement>(null)
@@ -63,6 +64,9 @@ export function VoiceRoom({
   const videoStreamRef = useRef<MediaStream | null>(null)
   const screenStreamRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
+  const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map())
+  const remoteAudioRef = useRef<Map<string, HTMLAudioElement>>(new Map())
+  const pendingIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map())
 
   const attachStream = (video: HTMLVideoElement | null, stream: MediaStream | null) => {
     if (!video) return
@@ -100,6 +104,159 @@ export function VoiceRoom({
     }
   }, [channelId])
 
+  const sendSignal = async (
+    recipientId: string,
+    type: "offer" | "answer" | "ice-candidate",
+    payload: RTCSessionDescriptionInit | RTCIceCandidateInit
+  ) => {
+    await fetch(`/api/channels/${channelId}/voice-signals`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recipientId, type, payload }),
+    })
+  }
+
+  const closePeer = (peerId: string) => {
+    peersRef.current.get(peerId)?.close()
+    peersRef.current.delete(peerId)
+    const audio = remoteAudioRef.current.get(peerId)
+    audio?.pause()
+    if (audio) audio.srcObject = null
+    remoteAudioRef.current.delete(peerId)
+    pendingIceRef.current.delete(peerId)
+  }
+
+  const createPeer = (peerId: string, initiator: boolean) => {
+    const existingPeer = peersRef.current.get(peerId)
+    if (existingPeer) return existingPeer
+
+    const peer = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    })
+    peersRef.current.set(peerId, peer)
+
+    if (mediaStreamRef.current) {
+      for (const track of mediaStreamRef.current.getTracks()) {
+        peer.addTrack(track, mediaStreamRef.current)
+      }
+    }
+
+    peer.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendSignal(peerId, "ice-candidate", event.candidate.toJSON()).catch((error) => {
+          console.error("Send ICE candidate error:", error)
+        })
+      }
+    }
+
+    peer.ontrack = (event) => {
+      const [stream] = event.streams
+      if (!stream) return
+      let audio = remoteAudioRef.current.get(peerId)
+      if (!audio) {
+        audio = new Audio()
+        audio.autoplay = true
+        audio.volume = 1
+        remoteAudioRef.current.set(peerId, audio)
+      }
+      audio.srcObject = stream
+      audio.play().catch(() => {
+        toast("Klik halaman ini untuk mengaktifkan output suara", "error")
+      })
+    }
+
+    peer.onconnectionstatechange = () => {
+      if (["failed", "closed", "disconnected"].includes(peer.connectionState)) {
+        closePeer(peerId)
+      }
+    }
+
+    if (initiator) {
+      peer
+        .createOffer()
+        .then((offer) => peer.setLocalDescription(offer).then(() => offer))
+        .then((offer) => sendSignal(peerId, "offer", offer))
+        .catch((error) => console.error("Create voice offer error:", error))
+    }
+
+    return peer
+  }
+
+  useEffect(() => {
+    if (!mediaReady) return
+
+    for (const member of members) {
+      if (member.id === currentUserId) continue
+      createPeer(member.id, currentUserId < member.id)
+    }
+
+    const activePeerIds = new Set(members.map((member) => member.id))
+    for (const peerId of peersRef.current.keys()) {
+      if (!activePeerIds.has(peerId)) closePeer(peerId)
+    }
+  }, [members, mediaReady, currentUserId])
+
+  useEffect(() => {
+    if (!mediaReady) return
+    let active = true
+
+    const pollSignals = async () => {
+      try {
+        const response = await fetch(`/api/channels/${channelId}/voice-signals`, {
+          cache: "no-store",
+        })
+        if (!response.ok || !active) return
+        const { signals } = await response.json()
+
+        for (const signal of signals as Array<{
+          senderId: string
+          type: "offer" | "answer" | "ice-candidate"
+          payload: RTCSessionDescriptionInit | RTCIceCandidateInit
+        }>) {
+          if (signal.type === "offer") {
+            const peer = createPeer(signal.senderId, false)
+            await peer.setRemoteDescription(signal.payload as RTCSessionDescriptionInit)
+            const pendingIce = pendingIceRef.current.get(signal.senderId) || []
+            for (const candidate of pendingIce) await peer.addIceCandidate(candidate)
+            pendingIceRef.current.delete(signal.senderId)
+            const answer = await peer.createAnswer()
+            await peer.setLocalDescription(answer)
+            await sendSignal(signal.senderId, "answer", answer)
+          } else if (signal.type === "answer") {
+            const peer = peersRef.current.get(signal.senderId)
+            if (peer && !peer.currentRemoteDescription) {
+              await peer.setRemoteDescription(signal.payload as RTCSessionDescriptionInit)
+            }
+          } else {
+            const peer = peersRef.current.get(signal.senderId)
+            if (peer?.remoteDescription) {
+              await peer.addIceCandidate(signal.payload as RTCIceCandidateInit)
+            } else {
+              const pending = pendingIceRef.current.get(signal.senderId) || []
+              pending.push(signal.payload as RTCIceCandidateInit)
+              pendingIceRef.current.set(signal.senderId, pending)
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Poll voice signals error:", error)
+      }
+    }
+
+    pollSignals()
+    const interval = window.setInterval(pollSignals, 500)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [channelId, mediaReady])
+
+  useEffect(() => {
+    return () => {
+      for (const peerId of peersRef.current.keys()) closePeer(peerId)
+    }
+  }, [])
+
   // Timer counter
   useEffect(() => {
     const timer = setInterval(() => {
@@ -117,6 +274,7 @@ export function VoiceRoom({
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
         if (!active) return
         mediaStreamRef.current = stream
+        setMediaReady(true)
 
         const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
         const audioCtx = new AudioCtx()
@@ -158,6 +316,12 @@ export function VoiceRoom({
       if (audioContextRef.current && audioContextRef.current.state !== "closed") {
         audioContextRef.current.close()
       }
+    }
+  }, [])
+
+  useEffect(() => {
+    for (const track of mediaStreamRef.current?.getAudioTracks() || []) {
+      track.enabled = !isMuted
     }
   }, [isMuted])
 
@@ -316,7 +480,7 @@ export function VoiceRoom({
                   <h3 className="font-extrabold text-white text-lg flex items-center justify-center gap-2">
                     {currentUserName} <span className="text-xs text-zinc-400 font-medium">(You)</span>
                   </h3>
- mar                  <div className="flex items-center justify-center gap-1.5 mt-1.5">
+                  <div className="flex items-center justify-center gap-1.5 mt-1.5">
                     {isSpeaking ? (
                       <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
                         <span className="h-2 w-2 rounded-full bg-emerald-400" />
