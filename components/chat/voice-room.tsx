@@ -59,6 +59,7 @@ export function VoiceRoom({
   const [members, setMembers] = useState<VoiceMember[]>([])
   const [mediaReady, setMediaReady] = useState(false)
   const [mediaError, setMediaError] = useState(false)
+  const [mediaAttempt, setMediaAttempt] = useState(0)
   const [presenceReady, setPresenceReady] = useState(false)
   const [peerStates, setPeerStates] = useState<Record<string, RTCPeerConnectionState>>({})
   const [remoteSpeakingIds, setRemoteSpeakingIds] = useState<string[]>([])
@@ -394,11 +395,29 @@ export function VoiceRoom({
   // Audio level detection using Web Audio API
   useEffect(() => {
     let active = true
+    let timedOut = false
+    let timeoutId: number | null = null
 
     async function initAudio() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        if (!active) return
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("Microphone access is not supported by this browser")
+        }
+
+        const streamPromise = navigator.mediaDevices.getUserMedia({ audio: true })
+        const timeoutPromise = new Promise<null>((resolve) => {
+          timeoutId = window.setTimeout(() => {
+            timedOut = true
+            setMediaError(true)
+            resolve(null)
+          }, 10_000)
+        })
+        const stream = await Promise.race([streamPromise, timeoutPromise])
+        if (!stream) return
+        if (!active || timedOut) {
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
         mediaStreamRef.current = stream
 
         const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
@@ -438,6 +457,8 @@ export function VoiceRoom({
       } catch (err) {
         console.warn("Microphone access unavailable or blocked:", err)
         setMediaError(true)
+      } finally {
+        if (timeoutId !== null) window.clearTimeout(timeoutId)
       }
     }
 
@@ -453,7 +474,7 @@ export function VoiceRoom({
         audioContextRef.current.close()
       }
     }
-  }, [])
+  }, [mediaAttempt])
 
   useEffect(() => {
     for (const track of mediaStreamRef.current?.getAudioTracks() || []) {
@@ -625,19 +646,34 @@ export function VoiceRoom({
       <div className="relative flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         {voiceStatus !== "connected" && (
           <div className={cn(
-            "mx-auto mb-4 flex max-w-5xl items-center gap-3 rounded-xl border px-4 py-3 text-sm",
+            "mx-auto mb-4 flex max-w-5xl flex-wrap items-center gap-3 rounded-xl border px-4 py-3 text-sm",
             voiceStatus === "error"
               ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
               : "border-amber-500/30 bg-amber-500/10 text-amber-200"
           )}>
             {voiceStatus !== "error" && <span className="h-4 w-4 shrink-0 aspect-square animate-spin rounded-full border-2 border-current/30 border-t-current" />}
-            <span>
+            <span className="min-w-0 flex-1">
               {voiceStatus === "error"
-                ? "Microphone permission is required before your voice can be sent."
+                ? "Microphone access did not finish. Check the browser permission, then try again."
                 : voiceStatus === "requesting"
                 ? "Preparing your microphone..."
                 : "Connecting to the voice channel. Your audio will be sent when connected."}
             </span>
+            {voiceStatus === "error" && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 border-current/30 text-current hover:bg-white/10"
+                onClick={() => {
+                  setMediaError(false)
+                  setMediaReady(false)
+                  setMediaAttempt((attempt) => attempt + 1)
+                }}
+              >
+                Try again
+              </Button>
+            )}
           </div>
         )}
         {mediaAction && (
