@@ -86,16 +86,16 @@ export function VoiceRoom({
   const remoteMemberIds = members
     .filter((member) => member.id !== currentUserId)
     .map((member) => member.id)
-  const allPeersConnected = remoteMemberIds.every((peerId) => peerStates[peerId] === "connected")
   const voiceStatus = mediaError
     ? "error"
     : !mediaReady
     ? "requesting"
     : !presenceReady
     ? "connecting"
-    : remoteMemberIds.length > 0 && !allPeersConnected
-    ? "connecting"
     : "connected"
+  const remoteConnectionPending = remoteMemberIds.some(
+    (peerId) => peerStates[peerId] !== "connected"
+  )
 
   const attachStream = (video: HTMLVideoElement | null, stream: MediaStream | null) => {
     if (!video) return
@@ -647,7 +647,7 @@ export function VoiceRoom({
 
       {/* Main Grid: Participant Cards */}
       <div className="relative flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        {voiceStatus !== "connected" && (
+        {voiceStatus !== "connected" ? (
           <div className={cn(
             "mx-auto mb-4 flex max-w-5xl flex-wrap items-center gap-3 rounded-xl border px-4 py-3 text-sm",
             voiceStatus === "error"
@@ -678,7 +678,12 @@ export function VoiceRoom({
               </Button>
             )}
           </div>
-        )}
+        ) : remoteConnectionPending ? (
+          <div className="mx-auto mb-4 flex max-w-5xl items-center gap-3 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
+            <span className="h-4 w-4 shrink-0 aspect-square animate-spin rounded-full border-2 border-current/30 border-t-current" />
+            <span>Voice connected. Connecting to other participants...</span>
+          </div>
+        ) : null}
         {mediaAction && (
           <div className="mx-auto mb-4 flex max-w-5xl items-center gap-3 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
             <span className="h-4 w-4 shrink-0 aspect-square animate-spin rounded-full border-2 border-current/30 border-t-current" />
