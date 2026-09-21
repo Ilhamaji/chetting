@@ -44,6 +44,7 @@ import {
 } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { CetingIcon } from "@/components/icons/ceting-icon"
+import { compressImage } from "@/lib/compress-image"
 
 interface Friend {
   id: string
@@ -286,7 +287,7 @@ export default function ChatPage() {
     setProfileUploading(true)
     try {
       const formData = new FormData()
-      formData.append("file", file)
+      formData.append("file", await compressImage(file))
       const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
 
       if (!uploadRes.ok) {
@@ -317,7 +318,7 @@ export default function ChatPage() {
   const handleUpdateServerImage = async (groupId: string, file: File) => {
     try {
       const formData = new FormData()
-      formData.append("file", file)
+      formData.append("file", await compressImage(file))
       const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
 
       if (!uploadRes.ok) {

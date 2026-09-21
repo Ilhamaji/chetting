@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils"
 import { useConfirm, useToast } from "@/components/ui/confirm-dialog"
 import { sound } from "@/lib/sound"
 import { format } from "date-fns"
+import { compressImage } from "@/lib/compress-image"
 
 interface Message {
   id: string
@@ -137,7 +138,8 @@ export function ChatWindow({
       if (selectedFile) {
         setUploading(true)
         const formData = new FormData()
-        formData.append("file", selectedFile.file)
+        const uploadFile = await compressImage(selectedFile.file)
+        formData.append("file", uploadFile)
 
         const uploadRes = await fetch("/api/upload", {
           method: "POST",

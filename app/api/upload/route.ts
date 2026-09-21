@@ -22,6 +22,9 @@ export async function POST(request: NextRequest) {
     if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json({ message: "File must be smaller than 10 MB" }, { status: 413 })
     }
+    if (file.type.startsWith("image/") && file.size > 1024 * 1024) {
+      return NextResponse.json({ message: "Image must be 1 MB or smaller" }, { status: 413 })
+    }
 
     const buffer = Buffer.from(await file.arrayBuffer())
     const asset = await prisma.mediaAsset.create({
