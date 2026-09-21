@@ -117,7 +117,7 @@ export function VoiceRoom({
 
     sound.join()
     updatePresence()
-    const interval = window.setInterval(updatePresence, 2_000)
+    const interval = window.setInterval(updatePresence, 1_000)
 
     return () => {
       active = false
@@ -332,7 +332,7 @@ export function VoiceRoom({
     }
 
     pollSignals()
-    const interval = window.setInterval(pollSignals, 250)
+    const interval = window.setInterval(pollSignals, 100)
     return () => {
       active = false
       window.clearInterval(interval)
