@@ -51,6 +51,7 @@ export function VoiceRoom({
   const [isDeafened, setIsDeafened] = useState(false)
   const [isVideoOn, setIsVideoOn] = useState(false)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
+  const [mediaAction, setMediaAction] = useState<"camera" | "screen" | null>(null)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [audioLevel, setAudioLevel] = useState(0)
   const [ping] = useState(24)
@@ -116,7 +117,7 @@ export function VoiceRoom({
 
     sound.join()
     updatePresence()
-    const interval = window.setInterval(updatePresence, 15_000)
+    const interval = window.setInterval(updatePresence, 2_000)
 
     return () => {
       active = false
@@ -331,7 +332,7 @@ export function VoiceRoom({
     }
 
     pollSignals()
-    const interval = window.setInterval(pollSignals, 500)
+    const interval = window.setInterval(pollSignals, 250)
     return () => {
       active = false
       window.clearInterval(interval)
@@ -439,13 +440,19 @@ export function VoiceRoom({
   }
 
   const toggleVideo = async () => {
+    if (mediaAction) return
     sound.click()
+    setMediaAction("camera")
     if (isVideoOn) {
-      stopStream(videoStreamRef.current)
-      videoStreamRef.current = null
-      await replaceVideoForPeers(screenStreamRef.current?.getVideoTracks()[0] || null)
-      attachStream(localVideoRef.current, null)
-      setIsVideoOn(false)
+      try {
+        stopStream(videoStreamRef.current)
+        videoStreamRef.current = null
+        await replaceVideoForPeers(screenStreamRef.current?.getVideoTracks()[0] || null)
+        attachStream(localVideoRef.current, null)
+        setIsVideoOn(false)
+      } finally {
+        setMediaAction(null)
+      }
       return
     }
 
@@ -464,17 +471,25 @@ export function VoiceRoom({
       setIsVideoOn(true)
     } catch (err) {
       toast("Could not access camera", "error")
+    } finally {
+      setMediaAction(null)
     }
   }
 
   const toggleScreenShare = async () => {
+    if (mediaAction) return
     sound.click()
+    setMediaAction("screen")
     if (isScreenSharing) {
-      stopStream(screenStreamRef.current)
-      screenStreamRef.current = null
-      await replaceVideoForPeers(videoStreamRef.current?.getVideoTracks()[0] || null)
-      attachStream(screenVideoRef.current, null)
-      setIsScreenSharing(false)
+      try {
+        stopStream(screenStreamRef.current)
+        screenStreamRef.current = null
+        await replaceVideoForPeers(videoStreamRef.current?.getVideoTracks()[0] || null)
+        attachStream(screenVideoRef.current, null)
+        setIsScreenSharing(false)
+      } finally {
+        setMediaAction(null)
+      }
       return
     }
 
@@ -495,6 +510,8 @@ export function VoiceRoom({
       setIsScreenSharing(true)
     } catch (err) {
       console.warn("Screen share cancelled", err)
+    } finally {
+      setMediaAction(null)
     }
   }
 
@@ -546,7 +563,7 @@ export function VoiceRoom({
                   : "border-amber-500/30 bg-amber-500/15 text-amber-400"
               )}>
                 {voiceStatus !== "connected" && voiceStatus !== "error" && (
-                  <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-current/30 border-t-current" />
+                  <span className="h-2.5 w-2.5 shrink-0 aspect-square animate-spin rounded-full border-2 border-current/30 border-t-current" />
                 )}
                 {voiceStatus === "connected" ? "Connected" : voiceStatus === "error" ? "Microphone unavailable" : voiceStatus === "requesting" ? "Starting microphone" : "Connecting voice"}
               </span>
@@ -572,13 +589,23 @@ export function VoiceRoom({
               ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
               : "border-amber-500/30 bg-amber-500/10 text-amber-200"
           )}>
-            {voiceStatus !== "error" && <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />}
+            {voiceStatus !== "error" && <span className="h-4 w-4 shrink-0 aspect-square animate-spin rounded-full border-2 border-current/30 border-t-current" />}
             <span>
               {voiceStatus === "error"
                 ? "Microphone permission is required before your voice can be sent."
                 : voiceStatus === "requesting"
                 ? "Preparing your microphone..."
                 : "Connecting to the voice channel. Your audio will be sent when connected."}
+            </span>
+          </div>
+        )}
+        {mediaAction && (
+          <div className="mx-auto mb-4 flex max-w-5xl items-center gap-3 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
+            <span className="h-4 w-4 shrink-0 aspect-square animate-spin rounded-full border-2 border-current/30 border-t-current" />
+            <span>
+              {mediaAction === "camera"
+                ? "Preparing camera and sending video to the voice channel..."
+                : "Preparing screen share and sending it to the voice channel..."}
             </span>
           </div>
         )}
@@ -748,7 +775,7 @@ export function VoiceRoom({
           <Button
             size="icon"
             onClick={toggleVideo}
-            disabled={!mediaReady}
+            disabled={!mediaReady || Boolean(mediaAction)}
             className={cn(
               "w-13 h-13 rounded-2xl shadow-lg transition-all cursor-pointer font-bold",
               isVideoOn
@@ -757,7 +784,9 @@ export function VoiceRoom({
             )}
             title={isVideoOn ? "Turn off camera" : "Turn on camera"}
           >
-            {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+            {mediaAction === "camera" ? (
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-current/30 border-t-current" />
+            ) : isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
           </Button>
         </motion.div>
 
@@ -766,7 +795,7 @@ export function VoiceRoom({
           <Button
             size="icon"
             onClick={toggleScreenShare}
-            disabled={!mediaReady}
+            disabled={!mediaReady || Boolean(mediaAction)}
             className={cn(
               "w-13 h-13 rounded-2xl shadow-lg transition-all cursor-pointer font-bold",
               isScreenSharing
@@ -775,7 +804,9 @@ export function VoiceRoom({
             )}
             title={isScreenSharing ? "Stop sharing" : "Share screen"}
           >
-            <ScreenShare className="w-5 h-5" />
+            {mediaAction === "screen" ? (
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-current/30 border-t-current" />
+            ) : <ScreenShare className="w-5 h-5" />}
           </Button>
         </motion.div>
 
