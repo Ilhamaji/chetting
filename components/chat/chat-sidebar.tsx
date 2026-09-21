@@ -18,6 +18,7 @@ import {
   Camera,
   FolderPlus,
   Compass,
+  UserPlus,
 } from "lucide-react"
 import {
   Dialog,
@@ -118,6 +119,9 @@ export function ChatSidebar({
   const [channelDialogOpen, setChannelDialogOpen] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState("")
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviting, setInviting] = useState(false)
   const [voiceMembers, setVoiceMembers] = useState<Record<string, VoiceMember[]>>({})
 
   const serverImageRef = useRef<HTMLInputElement>(null)
@@ -240,6 +244,36 @@ export function ChatSidebar({
       }
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const handleInviteMember = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedGroup || !inviteEmail.trim() || inviting) return
+
+    setInviting(true)
+    try {
+      const response = await fetch(`/api/groups/${selectedGroup.id}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast(data.message || "Failed to invite friend", "error")
+        return
+      }
+
+      setInviteEmail("")
+      setInviteDialogOpen(false)
+      toast("Friend invited to the server", "success")
+      onRefreshGroup?.(selectedGroup.id)
+    } catch (error) {
+      console.error("Invite member error:", error)
+      toast("Something went wrong", "error")
+    } finally {
+      setInviting(false)
     }
   }
 
@@ -594,6 +628,17 @@ export function ChatSidebar({
                   </Button>
                 </div>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full text-xs h-8 rounded-lg font-semibold dark:bg-zinc-800/80 dark:border-zinc-700"
+                onClick={() => {
+                  sound.click()
+                  setInviteDialogOpen(true)
+                }}
+              >
+                <UserPlus className="w-3.5 h-3.5 mr-1" /> Invite Friend
+              </Button>
             </div>
 
             {/* Channels & Categories List */}
@@ -827,6 +872,35 @@ export function ChatSidebar({
             </div>
             <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 font-semibold">
               Create Category
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite Friend</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleInviteMember} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="inviteEmail">Friend's email</Label>
+              <Input
+                id="inviteEmail"
+                type="email"
+                placeholder="friend@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                required
+                disabled={inviting}
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 font-semibold"
+              disabled={inviting}
+            >
+              {inviting ? "Inviting..." : "Invite to Server"}
             </Button>
           </form>
         </DialogContent>

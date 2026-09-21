@@ -73,10 +73,6 @@ export function ChatWindow({
   const toast = useToast()
 
   useEffect(() => {
-    fetchMessages()
-  }, [recipientId, groupId, channelId])
-
-  useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
@@ -98,6 +94,16 @@ export function ChatWindow({
       console.error("Fetch messages error:", error)
     }
   }
+
+  useEffect(() => {
+    const initialFetch = window.setTimeout(fetchMessages, 0)
+    const interval = window.setInterval(fetchMessages, 2000)
+
+    return () => {
+      window.clearTimeout(initialFetch)
+      window.clearInterval(interval)
+    }
+  }, [recipientId, groupId, channelId])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

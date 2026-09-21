@@ -105,16 +105,6 @@ export default function ChatPage() {
 
   const profileFileRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin")
-    } else if (status === "authenticated") {
-      fetchFriends()
-      fetchGroups()
-      updateStatus("ONLINE")
-    }
-  }, [status, router])
-
   const updateStatus = async (newStatus: "ONLINE" | "IDLE" | "DND" | "OFFLINE") => {
     setUserStatus(newStatus)
     try {
@@ -151,6 +141,28 @@ export default function ChatPage() {
       console.error("Fetch groups error:", error)
     }
   }
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin")
+    } else if (status === "authenticated") {
+      const initialFetch = window.setTimeout(() => {
+        fetchFriends()
+        fetchGroups()
+        updateStatus("ONLINE")
+      }, 0)
+
+      const interval = window.setInterval(() => {
+        fetchFriends()
+        fetchGroups()
+      }, 3000)
+
+      return () => {
+        window.clearTimeout(initialFetch)
+        window.clearInterval(interval)
+      }
+    }
+  }, [status, router])
 
   const fetchGroupDetails = async (groupId: string) => {
     try {
