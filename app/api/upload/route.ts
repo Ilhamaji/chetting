@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { writeFile, mkdir } from "fs/promises"
-import { join } from "path"
+import { prisma } from "@/lib/prisma"
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,20 +16,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "No file provided" }, { status: 400 })
     }
 
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    if (!file.type || file.size === 0) {
+      return NextResponse.json({ message: "Invalid file" }, { status: 400 })
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json({ message: "File must be smaller than 10 MB" }, { status: 413 })
+    }
 
-    const uploadDir = join(process.cwd(), "public", "uploads")
-    await mkdir(uploadDir, { recursive: true })
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const asset = await prisma.mediaAsset.create({
+      data: {
+        data: buffer,
+        mimeType: file.type,
+        fileName: file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 180),
+        ownerId: session.user.id,
+      },
+    })
 
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`
-    const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_")
-    const filename = `${uniqueSuffix}-${originalName}`
-    const filepath = join(uploadDir, filename)
-
-    await writeFile(filepath, buffer)
-
-    const fileUrl = `/uploads/${filename}`
+    const fileUrl = `/api/media/${asset.id}`
     let type = "FILE"
     if (file.type.startsWith("image/")) type = "IMAGE"
     else if (file.type.startsWith("video/")) type = "VIDEO"

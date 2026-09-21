@@ -27,6 +27,20 @@ model User {
   sentMessages  Message[]     @relation("SentMessages")
   voiceSessions VoiceSession[]
   sessions      Session[]
+  mediaAssets   MediaAsset[]
+}
+
+model MediaAsset {
+  id        String   @id @default(cuid())
+  data      Bytes
+  mimeType  String
+  fileName  String
+  ownerId   String
+  createdAt DateTime @default(now())
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([createdAt])
 }
 
 model Account {
