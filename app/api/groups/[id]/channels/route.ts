@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getGroupMembership } from "@/lib/security"
 
 export async function GET(
   request: NextRequest,
@@ -13,6 +14,8 @@ export async function GET(
     }
 
     const { id: groupId } = await params
+    const membership = await getGroupMembership(groupId, session.user.id)
+    if (!membership) return NextResponse.json({ message: "Forbidden" }, { status: 403 })
 
     const categories = await prisma.channelCategory.findMany({
       where: { groupId },
@@ -49,13 +52,19 @@ export async function POST(
     const { id: groupId } = await params
     const { name, type = "TEXT", categoryId } = await request.json()
 
-    if (!name) {
+    const membership = await getGroupMembership(groupId, session.user.id)
+    if (!membership || membership.role !== "ADMIN") return NextResponse.json({ message: "Forbidden" }, { status: 403 })
+    if (typeof name !== "string" || !name.trim() || name.length > 100 || !["TEXT", "VOICE", "VIDEO"].includes(type)) {
       return NextResponse.json({ message: "Name is required" }, { status: 400 })
+    }
+    if (categoryId) {
+      const category = await prisma.channelCategory.findFirst({ where: { id: categoryId, groupId } })
+      if (!category) return NextResponse.json({ message: "Invalid category" }, { status: 400 })
     }
 
     const channel = await prisma.channel.create({
       data: {
-        name,
+        name: name.trim(),
         type,
         groupId,
         categoryId: categoryId || null,
@@ -86,9 +95,12 @@ export async function DELETE(
       return NextResponse.json({ message: "Channel ID required" }, { status: 400 })
     }
 
-    await prisma.channel.delete({
-      where: { id: channelId },
-    })
+    const { id: groupId } = await params
+    const membership = await getGroupMembership(groupId, session.user.id)
+    if (!membership || membership.role !== "ADMIN") return NextResponse.json({ message: "Forbidden" }, { status: 403 })
+    const channel = await prisma.channel.findFirst({ where: { id: channelId, groupId } })
+    if (!channel) return NextResponse.json({ message: "Channel not found" }, { status: 404 })
+    await prisma.channel.delete({ where: { id: channel.id } })
 
     return NextResponse.json({ success: true })
   } catch (error) {

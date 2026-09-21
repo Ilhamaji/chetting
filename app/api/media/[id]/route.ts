@@ -12,7 +12,16 @@ export async function GET(
   }
 
   const { id } = await params
-  const asset = await prisma.mediaAsset.findUnique({ where: { id } })
+  const asset = await prisma.mediaAsset.findFirst({
+    where: {
+      id,
+      OR: [
+        { ownerId: session.user.id },
+        { owner: { sentMessages: { some: { fileUrl: `/api/media/${id}`, recipientId: session.user.id } } } },
+        { owner: { sentMessages: { some: { fileUrl: `/api/media/${id}`, group: { members: { some: { userId: session.user.id } } } } } } },
+      ],
+    },
+  })
   if (!asset) {
     return NextResponse.json({ message: "File not found" }, { status: 404 })
   }
@@ -22,8 +31,8 @@ export async function GET(
   return new NextResponse(body, {
     headers: {
       "Content-Type": asset.mimeType,
-      "Content-Disposition": `inline; filename="${asset.fileName}"`,
-      "Cache-Control": "private, max-age=31536000, immutable",
+      "Content-Disposition": `attachment; filename="${asset.fileName}"`,
+      "Cache-Control": "private, no-store",
     },
   })
 }

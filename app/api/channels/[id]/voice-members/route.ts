@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getChannelAccess } from "@/lib/security"
 
 export async function GET(
   _request: NextRequest,
@@ -12,6 +13,9 @@ export async function GET(
   }
 
   const { id: channelId } = await params
+  if (!(await getChannelAccess(channelId, session.user.id))) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 })
+  }
   const cutoff = new Date(Date.now() - 30_000)
 
   try {
@@ -46,6 +50,9 @@ export async function PUT(
   }
 
   const { id: channelId } = await params
+  if (!(await getChannelAccess(channelId, session.user.id))) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 })
+  }
 
   try {
     const channel = await prisma.channel.findUnique({

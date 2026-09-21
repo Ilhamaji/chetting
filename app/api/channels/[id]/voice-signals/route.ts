@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getChannelAccess } from "@/lib/security"
 
 const signalTypes = new Set(["offer", "answer", "ice-candidate"])
 
@@ -14,6 +15,9 @@ export async function GET(
   }
 
   const { id: channelId } = await params
+  if (!(await getChannelAccess(channelId, session.user.id))) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 })
+  }
 
   try {
     const signals = await prisma.voiceSignal.findMany({
@@ -44,6 +48,9 @@ export async function POST(
   }
 
   const { id: channelId } = await params
+  if (!(await getChannelAccess(channelId, session.user.id))) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 })
+  }
 
   try {
     const { recipientId, type, payload } = await request.json()
@@ -55,6 +62,13 @@ export async function POST(
     ) {
       return NextResponse.json({ message: "Invalid voice signal" }, { status: 400 })
     }
+    if (JSON.stringify(payload).length > 64 * 1024) {
+      return NextResponse.json({ message: "Voice signal is too large" }, { status: 413 })
+    }
+    const recipientSession = await prisma.voiceSession.findUnique({
+      where: { channelId_userId: { channelId, userId: recipientId } },
+    })
+    if (!recipientSession) return NextResponse.json({ message: "Recipient is not in this voice channel" }, { status: 403 })
 
     const senderSession = await prisma.voiceSession.findUnique({
       where: { channelId_userId: { channelId, userId: session.user.id } },
