@@ -666,8 +666,9 @@ export default function ChatPage() {
       </Dialog>
 
       {/* Main Container */}
-      <div className="flex-1 flex overflow-hidden">
-        <ChatSidebar
+      <div className="flex-1 flex min-w-0 overflow-hidden">
+        <div className={selectedChat ? "hidden md:block shrink-0" : "block w-full md:w-80 shrink-0"}>
+          <ChatSidebar
           friends={friends}
           groups={groups}
           selectedChat={selectedChat}
@@ -681,7 +682,8 @@ export default function ChatPage() {
           currentUserId={session.user.id}
           friendsLoading={friendsLoading}
           groupsLoading={groupsLoading}
-        />
+          />
+        </div>
 
         {selectedChat ? (
           selectedChat.type === "friend" && selectedFriend ? (
@@ -691,6 +693,7 @@ export default function ChatPage() {
               currentUserId={session.user.id}
               title={selectedFriend.name || "User"}
               avatar={selectedFriend.image}
+              onBack={() => setSelectedChat(null)}
             />
           ) : selectedChat.type === "channel" ? (
             selectedChat.channelType === "VOICE" ? (
@@ -710,6 +713,7 @@ export default function ChatPage() {
                 groupId={selectedChat.groupId}
                 currentUserId={session.user.id}
                 title={selectedChat.channelName || "channel"}
+                onBack={() => setSelectedChat(null)}
               />
             )
           ) : selectedChat.type === "group" && selectedGroup ? (
@@ -719,6 +723,7 @@ export default function ChatPage() {
               currentUserId={session.user.id}
               title={selectedGroup.name}
               avatar={selectedGroup.image}
+              onBack={() => setSelectedChat(null)}
             />
           ) : null
         ) : (

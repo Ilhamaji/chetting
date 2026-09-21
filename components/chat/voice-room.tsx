@@ -56,6 +56,7 @@ export function VoiceRoom({
   const [connectedTime, setConnectedTime] = useState(0)
   const [members, setMembers] = useState<VoiceMember[]>([])
   const [mediaReady, setMediaReady] = useState(false)
+  const [remoteSpeakingIds, setRemoteSpeakingIds] = useState<string[]>([])
 
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const screenVideoRef = useRef<HTMLVideoElement>(null)
@@ -67,6 +68,7 @@ export function VoiceRoom({
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map())
   const remoteAudioRef = useRef<Map<string, HTMLAudioElement>>(new Map())
   const pendingIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map())
+  const remoteAnalyserRef = useRef<Map<string, AnalyserNode>>(new Map())
 
   const attachStream = (video: HTMLVideoElement | null, stream: MediaStream | null) => {
     if (!video) return
@@ -123,6 +125,7 @@ export function VoiceRoom({
     audio?.pause()
     if (audio) audio.srcObject = null
     remoteAudioRef.current.delete(peerId)
+    remoteAnalyserRef.current.delete(peerId)
     pendingIceRef.current.delete(peerId)
   }
 
@@ -160,6 +163,12 @@ export function VoiceRoom({
         remoteAudioRef.current.set(peerId, audio)
       }
       audio.srcObject = stream
+      if (!remoteAnalyserRef.current.has(peerId) && audioContextRef.current) {
+        const analyser = audioContextRef.current.createAnalyser()
+        analyser.fftSize = 256
+        audioContextRef.current.createMediaStreamSource(stream).connect(analyser)
+        remoteAnalyserRef.current.set(peerId, analyser)
+      }
       audio.play().catch(() => {
         toast("Klik halaman ini untuk mengaktifkan output suara", "error")
       })
@@ -274,11 +283,11 @@ export function VoiceRoom({
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
         if (!active) return
         mediaStreamRef.current = stream
-        setMediaReady(true)
 
         const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
         const audioCtx = new AudioCtx()
         audioContextRef.current = audioCtx
+        setMediaReady(true)
         const analyser = audioCtx.createAnalyser()
         analyser.fftSize = 256
         const source = audioCtx.createMediaStreamSource(stream)
@@ -296,6 +305,15 @@ export function VoiceRoom({
           const average = sum / dataArray.length
           setAudioLevel(average)
           setIsSpeaking(!isMuted && average > 16)
+
+          const speakingIds: string[] = []
+          for (const [peerId, remoteAnalyser] of remoteAnalyserRef.current) {
+            const remoteData = new Uint8Array(remoteAnalyser.frequencyBinCount)
+            remoteAnalyser.getByteFrequencyData(remoteData)
+            const remoteAverage = remoteData.reduce((total, value) => total + value, 0) / remoteData.length
+            if (remoteAverage > 16) speakingIds.push(peerId)
+          }
+          setRemoteSpeakingIds(speakingIds)
           animationFrameRef.current = requestAnimationFrame(checkVolume)
         }
 
@@ -521,17 +539,26 @@ export function VoiceRoom({
                 layout
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="relative flex min-h-[16rem] items-center justify-center overflow-hidden rounded-2xl border-2 border-zinc-800 bg-zinc-900 p-5 sm:min-h-[18rem] sm:p-6 lg:min-h-[20rem] lg:p-8"
+                className={cn(
+                  "relative flex min-h-[16rem] items-center justify-center overflow-hidden rounded-2xl border-2 bg-zinc-900 p-5 transition-colors sm:min-h-[18rem] sm:p-6 lg:min-h-[20rem] lg:p-8",
+                  remoteSpeakingIds.includes(member.id) ? "border-emerald-500" : "border-zinc-800"
+                )}
               >
                 <div className="flex flex-col items-center gap-5">
                   <UserAvatar
                     name={member.name}
                     image={member.image}
+                    speaking={remoteSpeakingIds.includes(member.id)}
                     className="h-20 w-20 text-2xl sm:h-24 sm:w-24 sm:text-3xl"
                   />
                   <div className="text-center">
                     <h3 className="font-extrabold text-lg text-white">{member.name || "User"}</h3>
-                    <span className="mt-1.5 block text-xs font-medium text-emerald-400">In voice</span>
+                    <span className={cn(
+                      "mt-1.5 block text-xs font-medium",
+                      remoteSpeakingIds.includes(member.id) ? "text-emerald-400" : "text-zinc-500"
+                    )}>
+                      {remoteSpeakingIds.includes(member.id) ? "Speaking" : "In voice"}
+                    </span>
                   </div>
                 </div>
                 <span className="absolute bottom-4 left-4 rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-1 text-xs font-bold text-white">

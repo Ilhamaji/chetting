@@ -383,7 +383,7 @@ export function ChatSidebar({
   }
 
   return (
-    <aside className="w-80 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 flex flex-col h-full select-none shrink-0 transition-colors">
+    <aside className="w-full md:w-80 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 flex flex-col h-full select-none shrink-0 transition-colors">
       {/* Sidebar Tabs */}
       <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 flex gap-1">
         <motion.button

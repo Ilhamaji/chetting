@@ -15,6 +15,7 @@ import {
   Hash,
   Download,
   Image as ImageIcon,
+  ArrowLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useConfirm, useToast } from "@/components/ui/confirm-dialog"
@@ -45,6 +46,7 @@ interface ChatWindowProps {
   currentUserId: string
   title: string
   avatar?: string | null
+  onBack?: () => void
 }
 
 export function ChatWindow({
@@ -55,6 +57,7 @@ export function ChatWindow({
   currentUserId,
   title,
   avatar,
+  onBack,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [messagesLoading, setMessagesLoading] = useState(true)
@@ -207,6 +210,11 @@ export function ChatWindow({
       {/* Top Header Bar */}
       <div className="px-6 py-3.5 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-3">
+          {onBack && (
+            <Button variant="ghost" size="icon" onClick={onBack} className="md:hidden shrink-0" title="Back">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          )}
           {type === "channel" ? (
             <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl text-zinc-700 dark:text-zinc-300">
               <Hash className="w-5 h-5" />
