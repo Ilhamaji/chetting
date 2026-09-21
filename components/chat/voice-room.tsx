@@ -57,6 +57,8 @@ export function VoiceRoom({
   const [connectedTime, setConnectedTime] = useState(0)
   const [members, setMembers] = useState<VoiceMember[]>([])
   const [mediaReady, setMediaReady] = useState(false)
+  const [mediaError, setMediaError] = useState(false)
+  const [peerStates, setPeerStates] = useState<Record<string, RTCPeerConnectionState>>({})
   const [remoteSpeakingIds, setRemoteSpeakingIds] = useState<string[]>([])
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({})
   const [remoteVideoActive, setRemoteVideoActive] = useState<Record<string, boolean>>({})
@@ -74,6 +76,18 @@ export function VoiceRoom({
   const remoteAnalyserRef = useRef<Map<string, AnalyserNode>>(new Map())
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const videoSendersRef = useRef<Map<string, RTCRtpSender>>(new Map())
+
+  const remoteMemberIds = members
+    .filter((member) => member.id !== currentUserId)
+    .map((member) => member.id)
+  const allPeersConnected = remoteMemberIds.every((peerId) => peerStates[peerId] === "connected")
+  const voiceStatus = mediaError
+    ? "error"
+    : !mediaReady
+    ? "requesting"
+    : remoteMemberIds.length > 0 && !allPeersConnected
+    ? "connecting"
+    : "connected"
 
   const attachStream = (video: HTMLVideoElement | null, stream: MediaStream | null) => {
     if (!video) return
@@ -132,6 +146,11 @@ export function VoiceRoom({
     remoteAudioRef.current.delete(peerId)
     remoteAnalyserRef.current.delete(peerId)
     videoSendersRef.current.delete(peerId)
+    setPeerStates((previous) => {
+      const next = { ...previous }
+      delete next[peerId]
+      return next
+    })
     setRemoteVideoActive((previous) => {
       const next = { ...previous }
       delete next[peerId]
@@ -153,6 +172,7 @@ export function VoiceRoom({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     })
     peersRef.current.set(peerId, peer)
+    setPeerStates((previous) => ({ ...previous, [peerId]: "new" }))
 
     const audioTrack = mediaStreamRef.current?.getAudioTracks()[0]
     if (audioTrack && mediaStreamRef.current) {
@@ -207,6 +227,7 @@ export function VoiceRoom({
     }
 
     peer.onconnectionstatechange = () => {
+      setPeerStates((previous) => ({ ...previous, [peerId]: peer.connectionState }))
       if (["failed", "closed", "disconnected"].includes(peer.connectionState)) {
         closePeer(peerId)
       }
@@ -260,7 +281,7 @@ export function VoiceRoom({
     for (const peerId of peersRef.current.keys()) {
       if (!activePeerIds.has(peerId)) closePeer(peerId)
     }
-  }, [members, mediaReady, currentUserId])
+  }, [members, mediaReady, currentUserId, peerStates])
 
   useEffect(() => {
     if (!mediaReady) return
@@ -377,6 +398,7 @@ export function VoiceRoom({
         checkVolume()
       } catch (err) {
         console.warn("Microphone access unavailable or blocked:", err)
+        setMediaError(true)
       }
     }
 
@@ -515,8 +537,18 @@ export function VoiceRoom({
               <h2 className="truncate text-base font-extrabold tracking-tight text-white">
                 {channelName}
               </h2>
-              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                Connected
+              <span className={cn(
+                "flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                voiceStatus === "connected"
+                  ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-400"
+                  : voiceStatus === "error"
+                  ? "border-rose-500/30 bg-rose-500/15 text-rose-400"
+                  : "border-amber-500/30 bg-amber-500/15 text-amber-400"
+              )}>
+                {voiceStatus !== "connected" && voiceStatus !== "error" && (
+                  <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-current/30 border-t-current" />
+                )}
+                {voiceStatus === "connected" ? "Connected" : voiceStatus === "error" ? "Microphone unavailable" : voiceStatus === "requesting" ? "Starting microphone" : "Connecting voice"}
               </span>
             </div>
             <p className="mt-0.5 text-xs font-medium text-zinc-400">
@@ -532,7 +564,24 @@ export function VoiceRoom({
       </div>
 
       {/* Main Grid: Participant Cards */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <div className="relative flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        {voiceStatus !== "connected" && (
+          <div className={cn(
+            "mx-auto mb-4 flex max-w-5xl items-center gap-3 rounded-xl border px-4 py-3 text-sm",
+            voiceStatus === "error"
+              ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+              : "border-amber-500/30 bg-amber-500/10 text-amber-200"
+          )}>
+            {voiceStatus !== "error" && <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />}
+            <span>
+              {voiceStatus === "error"
+                ? "Microphone permission is required before your voice can be sent."
+                : voiceStatus === "requesting"
+                ? "Preparing your microphone..."
+                : "Connecting to the voice channel. Your audio will be sent when connected."}
+            </span>
+          </div>
+        )}
         <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
           <motion.div
             layout
@@ -663,6 +712,7 @@ export function VoiceRoom({
           <Button
             size="icon"
             onClick={handleToggleMute}
+            disabled={!mediaReady}
             className={cn(
               "w-13 h-13 rounded-2xl shadow-lg transition-all cursor-pointer font-bold",
               isMuted
@@ -680,6 +730,7 @@ export function VoiceRoom({
           <Button
             size="icon"
             onClick={handleToggleDeafen}
+            disabled={!mediaReady}
             className={cn(
               "w-13 h-13 rounded-2xl shadow-lg transition-all cursor-pointer font-bold",
               isDeafened
@@ -697,6 +748,7 @@ export function VoiceRoom({
           <Button
             size="icon"
             onClick={toggleVideo}
+            disabled={!mediaReady}
             className={cn(
               "w-13 h-13 rounded-2xl shadow-lg transition-all cursor-pointer font-bold",
               isVideoOn
@@ -714,6 +766,7 @@ export function VoiceRoom({
           <Button
             size="icon"
             onClick={toggleScreenShare}
+            disabled={!mediaReady}
             className={cn(
               "w-13 h-13 rounded-2xl shadow-lg transition-all cursor-pointer font-bold",
               isScreenSharing
