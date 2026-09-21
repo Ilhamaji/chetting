@@ -84,6 +84,7 @@ export function VoiceRoom({
   const reconnectTimersRef = useRef<Map<string, number>>(new Map())
   const leavingRef = useRef(false)
   const presenceControllerRef = useRef<AbortController | null>(null)
+  const presenceInFlightRef = useRef(false)
 
   const remoteMemberIds = members
     .filter((member) => member.id !== currentUserId)
@@ -116,12 +117,12 @@ export function VoiceRoom({
     leavingRef.current = false
 
     const updatePresence = async () => {
-      if (!active || leavingRef.current) return
-      presenceControllerRef.current?.abort()
+      if (!active || leavingRef.current || presenceInFlightRef.current) return
+      presenceInFlightRef.current = true
       const controller = new AbortController()
       presenceControllerRef.current = controller
+      const timeoutId = window.setTimeout(() => controller.abort(), 8_000)
       try {
-        const timeoutId = window.setTimeout(() => controller.abort(), 8_000)
         const response = await fetch(`/api/channels/${channelId}/voice-members`, {
           method: "PUT",
           cache: "no-store",
@@ -132,12 +133,17 @@ export function VoiceRoom({
         setMembers(data.members)
         setPresenceReady(true)
         setPresenceError(false)
-        window.clearTimeout(timeoutId)
       } catch (error) {
-        setPresenceError(true)
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
+        if (active && !leavingRef.current) {
+          setPresenceError(true)
+        }
+        if (!(error instanceof DOMException && error.name === "AbortError") && active) {
           console.error("Update voice presence error:", error)
         }
+      } finally {
+        window.clearTimeout(timeoutId)
+        presenceInFlightRef.current = false
+        presenceControllerRef.current = null
       }
     }
 
