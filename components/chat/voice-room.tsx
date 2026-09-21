@@ -79,8 +79,8 @@ export function VoiceRoom({
 
     const updatePresence = async () => {
       try {
-        await fetch(`/api/channels/${channelId}/voice-members`, { method: "PUT" })
-        const response = await fetch(`/api/channels/${channelId}/voice-members`)
+        await fetch(`/api/channels/${channelId}/voice-members`, { method: "PUT", cache: "no-store" })
+        const response = await fetch(`/api/channels/${channelId}/voice-members`, { cache: "no-store" })
         if (!response.ok || !active) return
         const data = await response.json()
         setMembers(data.members)
@@ -349,6 +349,32 @@ export function VoiceRoom({
               </div>
             </div>
           </motion.div>
+          {members
+            .filter((member) => member.id !== currentUserId)
+            .map((member) => (
+              <motion.div
+                key={member.id}
+                layout
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="relative flex min-h-[16rem] items-center justify-center overflow-hidden rounded-2xl border-2 border-zinc-800 bg-zinc-900 p-5 sm:min-h-[18rem] sm:p-6 lg:min-h-[20rem] lg:p-8"
+              >
+                <div className="flex flex-col items-center gap-5">
+                  <UserAvatar
+                    name={member.name}
+                    image={member.image}
+                    className="h-20 w-20 text-2xl sm:h-24 sm:w-24 sm:text-3xl"
+                  />
+                  <div className="text-center">
+                    <h3 className="font-extrabold text-lg text-white">{member.name || "User"}</h3>
+                    <span className="mt-1.5 block text-xs font-medium text-emerald-400">In voice</span>
+                  </div>
+                </div>
+                <span className="absolute bottom-4 left-4 rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-1 text-xs font-bold text-white">
+                  {member.name || "User"}
+                </span>
+              </motion.div>
+            ))}
         </div>
       </div>
 

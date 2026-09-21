@@ -59,7 +59,7 @@ export async function PUT(
 
     await prisma.voiceSession.upsert({
       where: { channelId_userId: { channelId, userId: session.user.id } },
-      update: {},
+      update: { updatedAt: new Date() },
       create: { channelId, userId: session.user.id },
     })
 

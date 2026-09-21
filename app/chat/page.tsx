@@ -85,6 +85,8 @@ export default function ChatPage() {
 
   const [friends, setFriends] = useState<Friend[]>([])
   const [groups, setGroups] = useState<Group[]>([])
+  const [friendsLoading, setFriendsLoading] = useState(true)
+  const [groupsLoading, setGroupsLoading] = useState(true)
   const [userStatus, setUserStatus] = useState<"ONLINE" | "IDLE" | "DND" | "OFFLINE">("ONLINE")
   const [selectedChat, setSelectedChat] = useState<{
     type: "friend" | "group" | "channel"
@@ -120,25 +122,29 @@ export default function ChatPage() {
 
   const fetchFriends = async () => {
     try {
-      const res = await fetch("/api/friends")
+      const res = await fetch("/api/friends", { cache: "no-store" })
       if (res.ok) {
         const data = await res.json()
         setFriends(data.friends)
       }
     } catch (error) {
       console.error("Fetch friends error:", error)
+    } finally {
+      setFriendsLoading(false)
     }
   }
 
   const fetchGroups = async () => {
     try {
-      const res = await fetch("/api/groups")
+      const res = await fetch("/api/groups", { cache: "no-store" })
       if (res.ok) {
         const data = await res.json()
         setGroups(data.groups)
       }
     } catch (error) {
       console.error("Fetch groups error:", error)
+    } finally {
+      setGroupsLoading(false)
     }
   }
 
@@ -673,6 +679,8 @@ export default function ChatPage() {
           onDeleteCategory={handleDeleteCategoryState}
           onUpdateServerImage={handleUpdateServerImage}
           currentUserId={session.user.id}
+          friendsLoading={friendsLoading}
+          groupsLoading={groupsLoading}
         />
 
         {selectedChat ? (

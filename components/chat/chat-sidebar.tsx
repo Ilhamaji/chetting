@@ -92,6 +92,8 @@ interface SidebarProps {
   onDeleteCategory?: (groupId: string, categoryId: string) => void
   onUpdateServerImage?: (groupId: string, file: File) => void
   currentUserId: string
+  friendsLoading?: boolean
+  groupsLoading?: boolean
 }
 
 export function ChatSidebar({
@@ -106,6 +108,8 @@ export function ChatSidebar({
   onDeleteCategory,
   onUpdateServerImage,
   currentUserId,
+  friendsLoading = false,
+  groupsLoading = false,
 }: SidebarProps) {
   const confirm = useConfirm()
   const toast = useToast()
@@ -147,7 +151,7 @@ export function ChatSidebar({
       const entries = await Promise.all(
         voiceChannels.map(async (channel) => {
           try {
-            const response = await fetch(`/api/channels/${channel.id}/voice-members`)
+            const response = await fetch(`/api/channels/${channel.id}/voice-members`, { cache: "no-store" })
             if (!response.ok) return [channel.id, []] as const
             const data = await response.json()
             return [channel.id, data.members as VoiceMember[]] as const
@@ -427,7 +431,13 @@ export function ChatSidebar({
               Direct Messages ({friends.length})
             </div>
 
-            {friends.length === 0 ? (
+            {friendsLoading ? (
+              <div className="space-y-2 p-1 animate-pulse">
+                {[1, 2, 3].map((item) => (
+                  <div key={item} className="h-[4.5rem] rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+                ))}
+              </div>
+            ) : friends.length === 0 ? (
               <div className="text-center py-12 px-4">
                 <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800/80 flex items-center justify-center mx-auto mb-3 text-zinc-400">
                   <Compass className="w-6 h-6" />
@@ -496,7 +506,13 @@ export function ChatSidebar({
               Joined Servers ({groups.length})
             </div>
 
-            {groups.length === 0 ? (
+            {groupsLoading ? (
+              <div className="space-y-2 p-1 animate-pulse">
+                {[1, 2].map((item) => (
+                  <div key={item} className="h-[4.5rem] rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+                ))}
+              </div>
+            ) : groups.length === 0 ? (
               <div className="text-center py-12 px-4">
                 <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800/80 flex items-center justify-center mx-auto mb-3 text-zinc-400">
                   <Users className="w-6 h-6" />

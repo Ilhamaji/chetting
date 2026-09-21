@@ -57,6 +57,7 @@ export function ChatWindow({
   avatar,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([])
+  const [messagesLoading, setMessagesLoading] = useState(true)
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -85,13 +86,15 @@ export function ChatWindow({
       else if (groupId) params.append("groupId", groupId)
       else if (recipientId) params.append("recipientId", recipientId)
 
-      const res = await fetch(`/api/messages?${params}`)
+      const res = await fetch(`/api/messages?${params}`, { cache: "no-store" })
       if (res.ok) {
         const data = await res.json()
         setMessages(data.messages)
       }
     } catch (error) {
       console.error("Fetch messages error:", error)
+    } finally {
+      setMessagesLoading(false)
     }
   }
 
@@ -138,11 +141,13 @@ export function ChatWindow({
           body: formData,
         })
 
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json()
-          uploadedFileUrl = uploadData.fileUrl
-          messageType = selectedFile.type
+        if (!uploadRes.ok) {
+          const uploadData = await uploadRes.json().catch(() => null)
+          throw new Error(uploadData?.message || "Upload failed")
         }
+        const uploadData = await uploadRes.json()
+        uploadedFileUrl = uploadData.fileUrl
+        messageType = selectedFile.type
         setUploading(false)
       }
 
@@ -167,7 +172,8 @@ export function ChatWindow({
         setSelectedFile(null)
       }
     } catch (error) {
-      toast("Failed to send message", "error")
+      console.error("Send message error:", error)
+      toast(error instanceof Error ? error.message : "Failed to send message", "error")
     } finally {
       setLoading(false)
       setUploading(false)
@@ -226,7 +232,13 @@ export function ChatWindow({
 
       {/* Messages Scroll Area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.length === 0 ? (
+        {messagesLoading ? (
+          <div className="space-y-4 animate-pulse">
+            {["w-2/5", "w-3/5", "w-1/3"].map((width, index) => (
+              <div key={index} className={cn("h-12 rounded-2xl bg-zinc-200 dark:bg-zinc-800", width)} />
+            ))}
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <div className="w-14 h-14 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-400 mb-3 shadow-xs">
               <Hash className="w-7 h-7" />
@@ -427,7 +439,11 @@ export function ChatWindow({
               disabled={loading || uploading || (!newMessage.trim() && !selectedFile)}
               className="bg-blue-600 hover:bg-blue-700 h-10 px-4 rounded-xl text-white font-bold shrink-0 cursor-pointer shadow-xs disabled:opacity-50"
             >
-              <Send className="w-4 h-4" />
+              {loading || uploading ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </Button>
           </motion.div>
         </form>

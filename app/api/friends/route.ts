@@ -50,8 +50,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { email } = await request.json()
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : ""
 
-    if (!email) {
+    if (!normalizedEmail) {
       return NextResponse.json(
         { message: "Email is required" },
         { status: 400 }
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const friendUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     })
 
     if (!friendUser) {
