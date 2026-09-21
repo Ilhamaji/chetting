@@ -85,6 +85,7 @@ export function VoiceRoom({
   const leavingRef = useRef(false)
   const presenceControllerRef = useRef<AbortController | null>(null)
   const presenceInFlightRef = useRef(false)
+  const presenceFailuresRef = useRef(0)
 
   const remoteMemberIds = members
     .filter((member) => member.id !== currentUserId)
@@ -121,20 +122,24 @@ export function VoiceRoom({
       presenceInFlightRef.current = true
       const controller = new AbortController()
       presenceControllerRef.current = controller
-      const timeoutId = window.setTimeout(() => controller.abort(), 8_000)
+      const timeoutId = window.setTimeout(() => controller.abort(), 20_000)
       try {
         const response = await fetch(`/api/channels/${channelId}/voice-members`, {
           method: "PUT",
           cache: "no-store",
           signal: controller.signal,
         })
-        if (!response.ok || !active || leavingRef.current) return
+        if (!response.ok || !active || leavingRef.current) {
+          throw new Error(`Voice presence request failed with status ${response.status}`)
+        }
         const data = await response.json()
         setMembers(data.members)
         setPresenceReady(true)
         setPresenceError(false)
+        presenceFailuresRef.current = 0
       } catch (error) {
-        if (active && !leavingRef.current) {
+        presenceFailuresRef.current += 1
+        if (active && !leavingRef.current && presenceFailuresRef.current >= 3) {
           setPresenceError(true)
         }
         if (!(error instanceof DOMException && error.name === "AbortError") && active) {
@@ -149,7 +154,7 @@ export function VoiceRoom({
 
     sound.join()
     updatePresence()
-    const interval = window.setInterval(updatePresence, 1_000)
+    const interval = window.setInterval(updatePresence, 5_000)
 
     return () => {
       active = false
@@ -690,6 +695,7 @@ export function VoiceRoom({
                   setMediaReady(false)
                   setPresenceError(false)
                   setPresenceReady(false)
+                  presenceFailuresRef.current = 0
                   setPresenceAttempt((attempt) => attempt + 1)
                   setMediaAttempt((attempt) => attempt + 1)
                 }}
