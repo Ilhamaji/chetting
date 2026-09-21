@@ -58,6 +58,7 @@ export function VoiceRoom({
   const [mediaReady, setMediaReady] = useState(false)
   const [remoteSpeakingIds, setRemoteSpeakingIds] = useState<string[]>([])
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({})
+  const [remoteVideoActive, setRemoteVideoActive] = useState<Record<string, boolean>>({})
 
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const screenVideoRef = useRef<HTMLVideoElement>(null)
@@ -71,6 +72,7 @@ export function VoiceRoom({
   const pendingIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map())
   const remoteAnalyserRef = useRef<Map<string, AnalyserNode>>(new Map())
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
+  const videoSendersRef = useRef<Map<string, RTCRtpSender>>(new Map())
 
   const attachStream = (video: HTMLVideoElement | null, stream: MediaStream | null) => {
     if (!video) return
@@ -128,6 +130,12 @@ export function VoiceRoom({
     if (audio) audio.srcObject = null
     remoteAudioRef.current.delete(peerId)
     remoteAnalyserRef.current.delete(peerId)
+    videoSendersRef.current.delete(peerId)
+    setRemoteVideoActive((previous) => {
+      const next = { ...previous }
+      delete next[peerId]
+      return next
+    })
     setRemoteStreams((previous) => {
       const next = { ...previous }
       delete next[peerId]
@@ -145,11 +153,17 @@ export function VoiceRoom({
     })
     peersRef.current.set(peerId, peer)
 
-    const localStreams = [mediaStreamRef.current, videoStreamRef.current, screenStreamRef.current].filter(
-      (stream): stream is MediaStream => Boolean(stream)
-    )
-    for (const stream of localStreams) {
-      for (const track of stream.getTracks()) peer.addTrack(track, stream)
+    const audioTrack = mediaStreamRef.current?.getAudioTracks()[0]
+    if (audioTrack && mediaStreamRef.current) {
+      peer.addTrack(audioTrack, mediaStreamRef.current)
+    }
+    const videoTransceiver = peer.addTransceiver("video", { direction: "sendrecv" })
+    videoSendersRef.current.set(peerId, videoTransceiver.sender)
+    const currentVideoTrack = screenStreamRef.current?.getVideoTracks()[0] || videoStreamRef.current?.getVideoTracks()[0]
+    if (currentVideoTrack) {
+      videoTransceiver.sender.replaceTrack(currentVideoTrack).catch((error) => {
+        console.error("Attach initial video track error:", error)
+      })
     }
 
     peer.onicecandidate = (event) => {
@@ -164,6 +178,15 @@ export function VoiceRoom({
       const [stream] = event.streams
       if (!stream) return
       setRemoteStreams((previous) => ({ ...previous, [peerId]: stream }))
+      if (event.track.kind === "video") {
+        const setVideoActive = (active: boolean) => {
+          setRemoteVideoActive((previous) => ({ ...previous, [peerId]: active }))
+        }
+        setVideoActive(event.track.readyState === "live" && !event.track.muted)
+        event.track.onunmute = () => setVideoActive(true)
+        event.track.onmute = () => setVideoActive(false)
+        event.track.onended = () => setVideoActive(false)
+      }
       let audio = remoteAudioRef.current.get(peerId)
       if (!audio) {
         audio = new Audio()
@@ -201,21 +224,13 @@ export function VoiceRoom({
     return peer
   }
 
-  const renegotiate = async (peer: RTCPeerConnection, peerId: string) => {
-    if (peer.signalingState !== "stable") return
-    const offer = await peer.createOffer()
-    await peer.setLocalDescription(offer)
-    await sendSignal(peerId, "offer", offer)
-  }
-
-  const addStreamToPeers = async (stream: MediaStream) => {
+  const replaceVideoForPeers = async (track: MediaStreamTrack | null) => {
     await Promise.all(
-      Array.from(peersRef.current.entries()).map(async ([peerId, peer]) => {
-        for (const track of stream.getTracks()) peer.addTrack(track, stream)
+      Array.from(videoSendersRef.current.values()).map(async (sender) => {
         try {
-          await renegotiate(peer, peerId)
+          await sender.replaceTrack(track)
         } catch (error) {
-          console.error("Renegotiate media error:", error)
+          console.error("Replace video track error:", error)
         }
       })
     )
@@ -401,6 +416,7 @@ export function VoiceRoom({
     if (isVideoOn) {
       stopStream(videoStreamRef.current)
       videoStreamRef.current = null
+      await replaceVideoForPeers(screenStreamRef.current?.getVideoTracks()[0] || null)
       attachStream(localVideoRef.current, null)
       setIsVideoOn(false)
       return
@@ -409,7 +425,7 @@ export function VoiceRoom({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true })
       videoStreamRef.current = stream
-      await addStreamToPeers(stream)
+      await replaceVideoForPeers(stream.getVideoTracks()[0])
       setIsVideoOn(true)
     } catch (err) {
       toast("Could not access camera", "error")
@@ -421,6 +437,7 @@ export function VoiceRoom({
     if (isScreenSharing) {
       stopStream(screenStreamRef.current)
       screenStreamRef.current = null
+      await replaceVideoForPeers(videoStreamRef.current?.getVideoTracks()[0] || null)
       attachStream(screenVideoRef.current, null)
       setIsScreenSharing(false)
       return
@@ -432,11 +449,14 @@ export function VoiceRoom({
       track.onended = () => {
         stopStream(screenStreamRef.current)
         screenStreamRef.current = null
+        replaceVideoForPeers(videoStreamRef.current?.getVideoTracks()[0] || null).catch((error) => {
+          console.error("Restore camera after screen share error:", error)
+        })
         attachStream(screenVideoRef.current, null)
         setIsScreenSharing(false)
       }
       screenStreamRef.current = stream
-      await addStreamToPeers(stream)
+      await replaceVideoForPeers(stream.getVideoTracks()[0])
       setIsScreenSharing(true)
     } catch (err) {
       console.warn("Screen share cancelled", err)
@@ -587,7 +607,7 @@ export function VoiceRoom({
                   remoteSpeakingIds.includes(member.id) ? "border-emerald-500" : "border-zinc-800"
                 )}
               >
-                {remoteStreams[member.id]?.getVideoTracks().length ? (
+                {remoteVideoActive[member.id] ? (
                   <video
                     ref={(element) => {
                       if (element) remoteVideoRefs.current.set(member.id, element)
@@ -598,12 +618,12 @@ export function VoiceRoom({
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                 ) : null}
-                <div className={cn("relative z-10 flex flex-col items-center gap-5", remoteStreams[member.id]?.getVideoTracks().length && "mt-auto self-start") }>
+                <div className={cn("relative z-10 flex flex-col items-center gap-5", remoteVideoActive[member.id] && "mt-auto self-start") }>
                   <UserAvatar
                     name={member.name}
                     image={member.image}
                     speaking={remoteSpeakingIds.includes(member.id)}
-                    className={cn("h-20 w-20 text-2xl sm:h-24 sm:w-24 sm:text-3xl", remoteStreams[member.id]?.getVideoTracks().length && "hidden")}
+                    className={cn("h-20 w-20 text-2xl sm:h-24 sm:w-24 sm:text-3xl", remoteVideoActive[member.id] && "hidden")}
                   />
                   <div className="text-center">
                     <h3 className="font-extrabold text-lg text-white">{member.name || "User"}</h3>
