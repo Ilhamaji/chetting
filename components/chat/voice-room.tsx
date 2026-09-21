@@ -17,7 +17,7 @@ import {
   Radio,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useToast } from "@/components/ui/confirm-dialog"
+import { useConfirm, useToast } from "@/components/ui/confirm-dialog"
 import { sound } from "@/lib/sound"
 
 interface VoiceMember {
@@ -46,6 +46,7 @@ export function VoiceRoom({
   onLeave,
 }: VoiceRoomProps) {
   const toast = useToast()
+  const confirm = useConfirm()
   const [isMuted, setIsMuted] = useState(false)
   const [isDeafened, setIsDeafened] = useState(false)
   const [isVideoOn, setIsVideoOn] = useState(false)
@@ -160,11 +161,9 @@ export function VoiceRoom({
     const videoTransceiver = peer.addTransceiver("video", { direction: "sendrecv" })
     videoSendersRef.current.set(peerId, videoTransceiver.sender)
     const currentVideoTrack = screenStreamRef.current?.getVideoTracks()[0] || videoStreamRef.current?.getVideoTracks()[0]
-    if (currentVideoTrack) {
-      videoTransceiver.sender.replaceTrack(currentVideoTrack).catch((error) => {
-        console.error("Attach initial video track error:", error)
-      })
-    }
+    const initialVideoReady = currentVideoTrack
+      ? videoTransceiver.sender.replaceTrack(currentVideoTrack)
+      : Promise.resolve()
 
     peer.onicecandidate = (event) => {
       if (event.candidate) {
@@ -214,8 +213,8 @@ export function VoiceRoom({
     }
 
     if (initiator) {
-      peer
-        .createOffer()
+      initialVideoReady
+        .then(() => peer.createOffer())
         .then((offer) => peer.setLocalDescription(offer).then(() => offer))
         .then((offer) => sendSignal(peerId, "offer", offer))
         .catch((error) => console.error("Create voice offer error:", error))
@@ -226,11 +225,17 @@ export function VoiceRoom({
 
   const replaceVideoForPeers = async (track: MediaStreamTrack | null) => {
     await Promise.all(
-      Array.from(videoSendersRef.current.values()).map(async (sender) => {
+      Array.from(videoSendersRef.current.entries()).map(async ([peerId, sender]) => {
         try {
           await sender.replaceTrack(track)
+          const peer = peersRef.current.get(peerId)
+          if (peer?.signalingState === "stable") {
+            const offer = await peer.createOffer()
+            await peer.setLocalDescription(offer)
+            await sendSignal(peerId, "offer", offer)
+          }
         } catch (error) {
-          console.error("Replace video track error:", error)
+          console.error("Replace video track or renegotiation error:", error)
         }
       })
     )
@@ -423,6 +428,14 @@ export function VoiceRoom({
     }
 
     try {
+      const confirmed = await confirm({
+        title: "Turn on camera?",
+        description: "Your camera preview will be visible to you and sent to people in this voice channel.",
+        confirmLabel: "Turn on camera",
+        cancelLabel: "Cancel",
+        variant: "info",
+      })
+      if (!confirmed) return
       const stream = await navigator.mediaDevices.getUserMedia({ video: true })
       videoStreamRef.current = stream
       await replaceVideoForPeers(stream.getVideoTracks()[0])
