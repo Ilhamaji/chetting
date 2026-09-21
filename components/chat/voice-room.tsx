@@ -57,6 +57,7 @@ export function VoiceRoom({
   const [members, setMembers] = useState<VoiceMember[]>([])
   const [mediaReady, setMediaReady] = useState(false)
   const [remoteSpeakingIds, setRemoteSpeakingIds] = useState<string[]>([])
+  const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({})
 
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const screenVideoRef = useRef<HTMLVideoElement>(null)
@@ -69,6 +70,7 @@ export function VoiceRoom({
   const remoteAudioRef = useRef<Map<string, HTMLAudioElement>>(new Map())
   const pendingIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map())
   const remoteAnalyserRef = useRef<Map<string, AnalyserNode>>(new Map())
+  const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
 
   const attachStream = (video: HTMLVideoElement | null, stream: MediaStream | null) => {
     if (!video) return
@@ -126,6 +128,11 @@ export function VoiceRoom({
     if (audio) audio.srcObject = null
     remoteAudioRef.current.delete(peerId)
     remoteAnalyserRef.current.delete(peerId)
+    setRemoteStreams((previous) => {
+      const next = { ...previous }
+      delete next[peerId]
+      return next
+    })
     pendingIceRef.current.delete(peerId)
   }
 
@@ -138,10 +145,11 @@ export function VoiceRoom({
     })
     peersRef.current.set(peerId, peer)
 
-    if (mediaStreamRef.current) {
-      for (const track of mediaStreamRef.current.getTracks()) {
-        peer.addTrack(track, mediaStreamRef.current)
-      }
+    const localStreams = [mediaStreamRef.current, videoStreamRef.current, screenStreamRef.current].filter(
+      (stream): stream is MediaStream => Boolean(stream)
+    )
+    for (const stream of localStreams) {
+      for (const track of stream.getTracks()) peer.addTrack(track, stream)
     }
 
     peer.onicecandidate = (event) => {
@@ -155,6 +163,7 @@ export function VoiceRoom({
     peer.ontrack = (event) => {
       const [stream] = event.streams
       if (!stream) return
+      setRemoteStreams((previous) => ({ ...previous, [peerId]: stream }))
       let audio = remoteAudioRef.current.get(peerId)
       if (!audio) {
         audio = new Audio()
@@ -163,6 +172,7 @@ export function VoiceRoom({
         remoteAudioRef.current.set(peerId, audio)
       }
       audio.srcObject = stream
+      audio.volume = isDeafened ? 0 : 1
       if (!remoteAnalyserRef.current.has(peerId) && audioContextRef.current) {
         const analyser = audioContextRef.current.createAnalyser()
         analyser.fftSize = 256
@@ -190,6 +200,33 @@ export function VoiceRoom({
 
     return peer
   }
+
+  const renegotiate = async (peer: RTCPeerConnection, peerId: string) => {
+    if (peer.signalingState !== "stable") return
+    const offer = await peer.createOffer()
+    await peer.setLocalDescription(offer)
+    await sendSignal(peerId, "offer", offer)
+  }
+
+  const addStreamToPeers = async (stream: MediaStream) => {
+    await Promise.all(
+      Array.from(peersRef.current.entries()).map(async ([peerId, peer]) => {
+        for (const track of stream.getTracks()) peer.addTrack(track, stream)
+        try {
+          await renegotiate(peer, peerId)
+        } catch (error) {
+          console.error("Renegotiate media error:", error)
+        }
+      })
+    )
+  }
+
+  useEffect(() => {
+    for (const [peerId, video] of remoteVideoRefs.current) {
+      const stream = remoteStreams[peerId]
+      if (video.srcObject !== stream) video.srcObject = stream || null
+    }
+  }, [remoteStreams])
 
   useEffect(() => {
     if (!mediaReady) return
@@ -341,7 +378,11 @@ export function VoiceRoom({
     for (const track of mediaStreamRef.current?.getAudioTracks() || []) {
       track.enabled = !isMuted
     }
-  }, [isMuted])
+    for (const audio of remoteAudioRef.current.values()) {
+      audio.volume = isDeafened ? 0 : 1
+    }
+    audioContextRef.current?.resume().catch(() => {})
+  }, [isMuted, isDeafened])
 
   useEffect(() => {
     attachStream(localVideoRef.current, isVideoOn ? videoStreamRef.current : null)
@@ -368,6 +409,7 @@ export function VoiceRoom({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true })
       videoStreamRef.current = stream
+      await addStreamToPeers(stream)
       setIsVideoOn(true)
     } catch (err) {
       toast("Could not access camera", "error")
@@ -394,6 +436,7 @@ export function VoiceRoom({
         setIsScreenSharing(false)
       }
       screenStreamRef.current = stream
+      await addStreamToPeers(stream)
       setIsScreenSharing(true)
     } catch (err) {
       console.warn("Screen share cancelled", err)
@@ -544,12 +587,23 @@ export function VoiceRoom({
                   remoteSpeakingIds.includes(member.id) ? "border-emerald-500" : "border-zinc-800"
                 )}
               >
-                <div className="flex flex-col items-center gap-5">
+                {remoteStreams[member.id]?.getVideoTracks().length ? (
+                  <video
+                    ref={(element) => {
+                      if (element) remoteVideoRefs.current.set(member.id, element)
+                      else remoteVideoRefs.current.delete(member.id)
+                    }}
+                    autoPlay
+                    playsInline
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : null}
+                <div className={cn("relative z-10 flex flex-col items-center gap-5", remoteStreams[member.id]?.getVideoTracks().length && "mt-auto self-start") }>
                   <UserAvatar
                     name={member.name}
                     image={member.image}
                     speaking={remoteSpeakingIds.includes(member.id)}
-                    className="h-20 w-20 text-2xl sm:h-24 sm:w-24 sm:text-3xl"
+                    className={cn("h-20 w-20 text-2xl sm:h-24 sm:w-24 sm:text-3xl", remoteStreams[member.id]?.getVideoTracks().length && "hidden")}
                   />
                   <div className="text-center">
                     <h3 className="font-extrabold text-lg text-white">{member.name || "User"}</h3>

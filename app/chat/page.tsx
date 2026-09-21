@@ -40,6 +40,7 @@ import {
   Moon,
   Zap,
   Compass,
+  MoreHorizontal,
 } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { CetingIcon } from "@/components/icons/ceting-icon"
@@ -429,7 +430,7 @@ export default function ChatPage() {
           {/* Add Friend Dialog */}
           <Dialog open={addFriendOpen} onOpenChange={setAddFriendOpen}>
             <DialogTrigger asChild>
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+              <motion.div className="hidden sm:block" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                 <Button
                   variant="outline"
                   size="sm"
@@ -471,7 +472,7 @@ export default function ChatPage() {
           {/* Create Server Dialog */}
           <Dialog open={createGroupOpen} onOpenChange={setCreateGroupOpen}>
             <DialogTrigger asChild>
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+              <motion.div className="hidden sm:block" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                 <Button
                   size="sm"
                   className="gap-2 text-xs h-9 px-4 bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-600/20 cursor-pointer"
@@ -521,7 +522,7 @@ export default function ChatPage() {
           </Dialog>
 
           {/* Theme Toggle */}
-          <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+          <motion.div className="hidden sm:block" whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
             <Button
               variant="outline"
               size="icon"
@@ -535,6 +536,26 @@ export default function ChatPage() {
               {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </Button>
           </motion.div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="sm:hidden h-9 w-9 dark:border-zinc-700" title="More actions">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52 p-2">
+              <DropdownMenuItem onClick={() => { sound.click(); setAddFriendOpen(true) }} className="font-semibold">
+                <UserPlus className="w-4 h-4" /> Add Friend
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { sound.click(); setCreateGroupOpen(true) }} className="font-semibold">
+                <Plus className="w-4 h-4" /> Create Server
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { sound.click(); toggleTheme() }} className="font-semibold">
+                {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                {theme === "light" ? "Dark Mode" : "Light Mode"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* User Settings Dropdown */}
           <DropdownMenu>
