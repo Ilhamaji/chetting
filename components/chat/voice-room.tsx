@@ -89,8 +89,10 @@ export function VoiceRoom({
   const allPeersConnected = remoteMemberIds.every((peerId) => peerStates[peerId] === "connected")
   const voiceStatus = mediaError
     ? "error"
-    : !mediaReady || !presenceReady
+    : !mediaReady
     ? "requesting"
+    : !presenceReady
+    ? "connecting"
     : remoteMemberIds.length > 0 && !allPeersConnected
     ? "connecting"
     : "connected"
@@ -419,11 +421,12 @@ export function VoiceRoom({
           return
         }
         mediaStreamRef.current = stream
+        setMediaReady(true)
 
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+        if (!AudioCtx) return
         const audioCtx = new AudioCtx()
         audioContextRef.current = audioCtx
-        setMediaReady(true)
         const analyser = audioCtx.createAnalyser()
         analyser.fftSize = 256
         const source = audioCtx.createMediaStreamSource(stream)
