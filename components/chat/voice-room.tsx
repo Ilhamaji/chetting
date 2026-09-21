@@ -82,6 +82,8 @@ export function VoiceRoom({
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const videoSendersRef = useRef<Map<string, RTCRtpSender>>(new Map())
   const reconnectTimersRef = useRef<Map<string, number>>(new Map())
+  const peerTimeoutsRef = useRef<Map<string, number>>(new Map())
+  const reconnectAttemptsRef = useRef<Map<string, number>>(new Map())
   const leavingRef = useRef(false)
   const presenceControllerRef = useRef<AbortController | null>(null)
   const presenceInFlightRef = useRef(false)
@@ -100,7 +102,10 @@ export function VoiceRoom({
     ? "connecting"
     : "connected"
   const remoteConnectionPending = remoteMemberIds.some(
-    (peerId) => peerStates[peerId] !== "connected"
+    (peerId) => ["new", "connecting", "checking"].includes(peerStates[peerId])
+  )
+  const remoteConnectionFailed = remoteMemberIds.some(
+    (peerId) => ["failed", "disconnected", "closed"].includes(peerStates[peerId])
   )
 
   const attachStream = (video: HTMLVideoElement | null, stream: MediaStream | null) => {
@@ -181,6 +186,9 @@ export function VoiceRoom({
     const reconnectTimer = reconnectTimersRef.current.get(peerId)
     if (reconnectTimer) window.clearTimeout(reconnectTimer)
     reconnectTimersRef.current.delete(peerId)
+    const peerTimeout = peerTimeoutsRef.current.get(peerId)
+    if (peerTimeout) window.clearTimeout(peerTimeout)
+    peerTimeoutsRef.current.delete(peerId)
     peersRef.current.get(peerId)?.close()
     peersRef.current.delete(peerId)
     const audio = remoteAudioRef.current.get(peerId)
@@ -207,7 +215,7 @@ export function VoiceRoom({
     pendingIceRef.current.delete(peerId)
   }
 
-  const createPeer = (peerId: string, initiator: boolean) => {
+  const createPeer = (peerId: string, initiator: boolean, iceRestart = false) => {
     const existingPeer = peersRef.current.get(peerId)
     if (existingPeer) return existingPeer
 
@@ -220,6 +228,18 @@ export function VoiceRoom({
     })
     peersRef.current.set(peerId, peer)
     setPeerStates((previous) => ({ ...previous, [peerId]: "new" }))
+    const timeout = window.setTimeout(() => {
+      if (peersRef.current.get(peerId) !== peer || peer.connectionState === "connected") return
+      const attempts = reconnectAttemptsRef.current.get(peerId) || 0
+      closePeer(peerId)
+      if (attempts < 2 && !leavingRef.current) {
+        reconnectAttemptsRef.current.set(peerId, attempts + 1)
+        createPeer(peerId, currentUserId < peerId, true)
+      } else {
+        setPeerStates((previous) => ({ ...previous, [peerId]: "failed" }))
+      }
+    }, 10_000)
+    peerTimeoutsRef.current.set(peerId, timeout)
 
     const audioTrack = mediaStreamRef.current?.getAudioTracks()[0]
     if (audioTrack && mediaStreamRef.current) {
@@ -276,6 +296,7 @@ export function VoiceRoom({
     peer.onconnectionstatechange = () => {
       setPeerStates((previous) => ({ ...previous, [peerId]: peer.connectionState }))
       if (peer.connectionState === "connected") {
+        reconnectAttemptsRef.current.delete(peerId)
         const reconnectTimer = reconnectTimersRef.current.get(peerId)
         if (reconnectTimer) window.clearTimeout(reconnectTimer)
         reconnectTimersRef.current.delete(peerId)
@@ -288,7 +309,11 @@ export function VoiceRoom({
         const timer = window.setTimeout(() => {
           if (peersRef.current.get(peerId) === peer) {
             closePeer(peerId)
-            createPeer(peerId, currentUserId < peerId)
+            const attempts = reconnectAttemptsRef.current.get(peerId) || 0
+            if (attempts < 2 && !leavingRef.current) {
+              reconnectAttemptsRef.current.set(peerId, attempts + 1)
+              createPeer(peerId, currentUserId < peerId, true)
+            }
           }
         }, 750)
         reconnectTimersRef.current.set(peerId, timer)
@@ -297,7 +322,7 @@ export function VoiceRoom({
 
     if (initiator) {
       initialVideoReady
-        .then(() => peer.createOffer())
+        .then(() => peer.createOffer({ iceRestart }))
         .then((offer) => peer.setLocalDescription(offer).then(() => offer))
         .then((offer) => sendSignal(peerId, "offer", offer))
         .catch((error) => console.error("Create voice offer error:", error))
@@ -343,7 +368,7 @@ export function VoiceRoom({
     for (const peerId of peersRef.current.keys()) {
       if (!activePeerIds.has(peerId)) closePeer(peerId)
     }
-  }, [members, mediaReady, currentUserId, peerStates])
+  }, [members, mediaReady, currentUserId])
 
   useEffect(() => {
     if (!mediaReady) return
@@ -708,6 +733,10 @@ export function VoiceRoom({
           <div className="mx-auto mb-4 flex max-w-5xl items-center gap-3 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
             <span className="h-4 w-4 shrink-0 aspect-square animate-spin rounded-full border-2 border-current/30 border-t-current" />
             <span>Voice connected. Connecting to other participants...</span>
+          </div>
+        ) : remoteConnectionFailed ? (
+          <div className="mx-auto mb-4 flex max-w-5xl items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            <span>Voice connected, but one or more participants could not establish a direct media connection.</span>
           </div>
         ) : null}
         {mediaAction && (
