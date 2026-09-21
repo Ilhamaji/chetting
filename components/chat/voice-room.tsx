@@ -78,6 +78,8 @@ export function VoiceRoom({
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const videoSendersRef = useRef<Map<string, RTCRtpSender>>(new Map())
   const reconnectTimersRef = useRef<Map<string, number>>(new Map())
+  const leavingRef = useRef(false)
+  const presenceControllerRef = useRef<AbortController | null>(null)
 
   const remoteMemberIds = members
     .filter((member) => member.id !== currentUserId)
@@ -105,14 +107,21 @@ export function VoiceRoom({
     let active = true
 
     const updatePresence = async () => {
+      if (!active || leavingRef.current) return
+      presenceControllerRef.current?.abort()
+      const controller = new AbortController()
+      presenceControllerRef.current = controller
       try {
-        await fetch(`/api/channels/${channelId}/voice-members`, { method: "PUT", cache: "no-store" })
-        const response = await fetch(`/api/channels/${channelId}/voice-members`, { cache: "no-store" })
-        if (!response.ok || !active) return
+        await fetch(`/api/channels/${channelId}/voice-members`, { method: "PUT", cache: "no-store", signal: controller.signal })
+        if (!active || leavingRef.current) return
+        const response = await fetch(`/api/channels/${channelId}/voice-members`, { cache: "no-store", signal: controller.signal })
+        if (!response.ok || !active || leavingRef.current) return
         const data = await response.json()
         setMembers(data.members)
       } catch (error) {
-        console.error("Update voice presence error:", error)
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          console.error("Update voice presence error:", error)
+        }
       }
     }
 
@@ -122,8 +131,10 @@ export function VoiceRoom({
 
     return () => {
       active = false
+      leavingRef.current = true
+      presenceControllerRef.current?.abort()
       window.clearInterval(interval)
-      fetch(`/api/channels/${channelId}/voice-members`, { method: "DELETE", keepalive: true })
+      fetch(`/api/channels/${channelId}/voice-members`, { method: "POST", keepalive: true })
     }
   }, [channelId])
 
@@ -554,6 +565,9 @@ export function VoiceRoom({
   }
 
   const handleDisconnect = () => {
+    leavingRef.current = true
+    presenceControllerRef.current?.abort()
+    fetch(`/api/channels/${channelId}/voice-members`, { method: "POST", keepalive: true }).catch(() => {})
     sound.leave()
     if (onLeave) onLeave()
   }
